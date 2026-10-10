@@ -1,4 +1,4 @@
-**This driver was created and compiled entirely by GPT 6 Astra and 6.1 Sol with interference from WitherBlitz.**
+**This driver was created and compiled entirely by GPT 6 Astra and 6.1 Sol with additions and edits by WitherBlitz.**
 
 # Dream Air Lighthouse Driver Hybrid
 
