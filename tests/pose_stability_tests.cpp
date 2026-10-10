@@ -1,0 +1,59 @@
+#include "../CustomHeadsetOpenVR/src/Tracking/PoseStability.h"
+#include "../CustomHeadsetOpenVR/src/Tracking/TrackingManager.h"
+#include <cmath>
+#include <functional>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+#include <vector>
+#include <thread>
+
+using namespace dreamair;
+static void Require(bool ok, const char* msg) { if (!ok) throw std::runtime_error(msg); }
+static vr::DriverPose_t Pose(double x = 0) {
+    vr::DriverPose_t p{}; p.qRotation.w = p.qWorldFromDriverRotation.w = p.qDriverFromHeadRotation.w = 1;
+    p.vecPosition[0] = x; p.poseIsValid = true; p.deviceIsConnected = true; p.result = vr::TrackingResult_Running_OK;
+    return p;
+}
+static bool Near(double a, double b, double eps = 1e-9) { return std::abs(a - b) < eps; }
+int main() {
+    std::vector<std::pair<const char*, std::function<void()>>> tests;
+    auto add = [&](const char* n, std::function<void()> f) { tests.emplace_back(n, f); };
+    add("disabled passes through", [] { PoseStability f; Settings s; s.enabled=false; auto p=Pose(100); p.qRotation.w=2; Require(f.Process(p,1,s)==Decision::Disabled && p.qRotation.w==2 && p.vecPosition[0]==100,"disabled changed pose"); });
+    add("source loss stays invalid", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p.poseIsValid=false; p.result=vr::TrackingResult_Running_OutOfRange; Require(f.Process(p,1.01,s)==Decision::SourceInvalid && !p.poseIsValid && p.result==vr::TrackingResult_Running_OutOfRange,"loss upgraded"); });
+    add("fallback stays rotation only", [] { PoseStability f; Settings s; auto p=Pose(); p.result=vr::TrackingResult_Fallback_RotationOnly; f.Process(p,1,s); Require(p.result==vr::TrackingResult_Fallback_RotationOnly && p.poseIsValid,"fallback modified"); });
+    add("disconnected stays disconnected", [] { PoseStability f; Settings s; auto p=Pose(); p.deviceIsConnected=false; f.Process(p,1,s); Require(!p.deviceIsConnected,"connection fabricated"); });
+    add("NaN position produces finite invalid pose", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p.vecPosition[0]=std::numeric_limits<double>::quiet_NaN(); Require(f.Process(p,1.01,s)==Decision::Malformed && !p.poseIsValid && std::isfinite(p.vecPosition[0]),"NaN escaped"); });
+    add("malformed first sample is sanitized", [] { PoseStability f; Settings s; auto p=Pose(); p.qRotation={}; p.vecVelocity[1]=std::numeric_limits<double>::infinity(); f.Process(p,1,s); Require(!p.poseIsValid && std::isfinite(p.vecVelocity[1]) && Near(p.qRotation.w,1),"first corrupt sample escaped"); });
+    add("all pose fields validated", [] { Settings s; for(int i=0;i<8;i++) { PoseStability f; auto p=Pose(); double* fields[]={p.vecVelocity,p.vecAcceleration,p.vecAngularVelocity,p.vecAngularAcceleration,p.vecWorldFromDriverTranslation,p.vecDriverFromHeadTranslation,&p.qWorldFromDriverRotation.w,&p.qDriverFromHeadRotation.w}; *fields[i]=std::numeric_limits<double>::infinity(); f.Process(p,1,s); Require(!p.poseIsValid,"corrupt field escaped"); } });
+    add("bad timestamp rejected", [] { PoseStability f; Settings s; auto p=Pose(); p.poseTimeOffset=-2; Require(f.Process(p,1,s)==Decision::Malformed && !p.poseIsValid,"stale source time escaped"); });
+    add("quaternion normalized", [] { PoseStability f; Settings s; auto p=Pose(); p.qRotation.w=2; f.Process(p,1,s); Require(Near(p.qRotation.w,1),"rotation not normalized"); });
+    add("one frame teleport rejected and return recovers", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p=Pose(3); Require(f.Process(p,1.01,s)==Decision::JumpRejected && !p.poseIsValid,"teleport accepted"); p=Pose(0.001); f.Process(p,1.02,s); Require(p.poseIsValid && Near(p.vecPosition[0],0.001),"return did not recover"); });
+    add("sustained new trajectory confirms", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); for(int i=1;i<=3;i++) { p=Pose(2+0.001*i); f.Process(p,1+0.01*i,s); Require(p.poseIsValid==(i==3),"wrong candidate acceptance"); } Require(Near(p.vecPosition[0],2.003),"candidate blended across jump"); });
+    add("inconsistent candidates never confirm", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); for(int i=1;i<9;i++){ p=Pose(i%2 ? 2 : 4); f.Process(p,1+0.005*i,s); Require(!p.poseIsValid,"inconsistent samples confirmed"); } });
+    add("reacquisition after loss needs valid samples", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p.poseIsValid=false; f.Process(p,1.01,s); for(int i=1;i<=3;i++){ p=Pose(3+0.001*i); f.Process(p,1.01+0.01*i,s); Require(p.poseIsValid==(i==3),"loss recovered prematurely"); } });
+    add("fast legitimate movement survives", [] { PoseStability f; Settings s; for(int i=0;i<100;i++){ auto p=Pose(i*0.06); p.vecVelocity[0]=6; f.Process(p,1+i*0.01,s); Require(p.poseIsValid,"valid fast motion rejected"); } });
+    add("reported runaway velocity rejected", [] { PoseStability f; Settings s; auto p=Pose(); p.vecVelocity[0]=100; Require(f.Process(p,1,s)==Decision::Malformed && !p.poseIsValid && p.vecVelocity[0]==0,"runaway predictor accepted"); });
+    add("rotation spike rejected", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p.qRotation={0,0,1,0}; Require(f.Process(p,1.004,s)==Decision::JumpRejected && !p.poseIsValid,"rotation spike accepted"); });
+    add("quaternion sign flip is identical orientation", [] { PoseStability f; Settings s; s.smoothOrientation=true; auto p=Pose(); f.Process(p,1,s); p.qRotation.w=-1; f.Process(p,1.01,s); Require(p.poseIsValid && Near(std::abs(p.qRotation.w),1),"sign flip rejected"); });
+    add("world frame changes reset without blending", [] { PoseStability f; Settings s; s.smoothPosition=true; auto p=Pose(); f.Process(p,1,s); p=Pose(10); p.vecWorldFromDriverTranslation[0]=5; Require(f.Process(p,1.01,s)==Decision::FrameReset && p.poseIsValid && Near(p.vecPosition[0],10),"recenter filtered"); });
+    add("long callback gap requires reacquisition", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p=Pose(4); Require(f.Process(p,2,s)==Decision::GapReset && !p.poseIsValid,"gap treated as continuous"); for(int i=1;i<=2;i++){ p=Pose(4); f.Process(p,2+0.01*i,s); Require(p.poseIsValid==(i==2),"gap recovery wrong"); } });
+    add("time reversal invalidates sample", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); Require(f.Process(p,0.5,s)==Decision::Stale && !p.poseIsValid,"time reversal accepted"); });
+    add("duplicate time cannot confirm recovery", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p=Pose(2); f.Process(p,1.01,s); for(int i=0;i<8;i++){ p=Pose(2); f.Process(p,1.01,s); Require(!p.poseIsValid,"duplicate confirmed recovery"); } });
+    add("position smoothing reduces stationary jitter", [] { PoseStability f; Settings s; s.smoothPosition=true; double input=0, output=0; for(int i=0;i<250;i++){ auto p=Pose(i%2 ? 0.001 : -0.001); input+=p.vecPosition[0]*p.vecPosition[0]; f.Process(p,1+i*0.004,s); Require(p.poseIsValid,"jitter rejected"); if(i>20) output+=p.vecPosition[0]*p.vecPosition[0]; } Require(output<input*0.5,"jitter not reduced"); });
+    add("smoothing disabled keeps pose and predictor", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p=Pose(0.02); p.vecVelocity[0]=2; p.poseTimeOffset=0.005; f.Process(p,1.01,s); Require(Near(p.vecPosition[0],0.02) && Near(p.vecVelocity[0],2) && Near(p.poseTimeOffset,0.005),"guard added smoothing"); });
+    add("invalid settings become bounded finite settings", [] { Settings s; s.maxLinearSpeed=std::numeric_limits<double>::quiet_NaN(); s.positionMinCutoff=-1; s.positionBeta=std::numeric_limits<double>::infinity(); s.reacquireSamples=999999; s.Sanitize(); Require(std::isfinite(s.maxLinearSpeed) && s.maxLinearSpeed>0 && s.positionMinCutoff>=1 && std::isfinite(s.positionBeta) && s.reacquireSamples<=20,"config not bounded"); });
+    add("guard precedence over forced tracking", [] { TrackingManager m; m.Configure(Settings{},true,true); m.Register(7); auto p=Pose(); p.poseIsValid=false; p.result=vr::TrackingResult_Running_OutOfRange; m.Process(7,p,1); Require(!p.poseIsValid && p.result==vr::TrackingResult_Running_OutOfRange,"force overrode HMD guard"); auto other=Pose(); other.poseIsValid=false; m.Process(2,other,1); Require(other.poseIsValid,"unrelated upstream flag behavior changed"); });
+    add("actual index registered without assuming zero", [] { TrackingManager m; m.Register(7); auto p=Pose(); m.Process(0,p,1); p=Pose(); m.Process(7,p,1); p=Pose(3); m.Process(7,p,1.01); Require(!p.poseIsValid && m.Snapshot().samples==2 && m.Snapshot().jumps==1,"wrong HMD targeted"); });
+    add("unregister only removes matching device", [] { TrackingManager m; m.Register(7); m.Unregister(2); Require(m.Snapshot().deviceIndex==7,"unrelated deactivation lost target"); m.Unregister(7); auto p=Pose(); m.Process(7,p,1); Require(m.Snapshot().deviceIndex==vr::k_unTrackedDeviceIndexInvalid && m.Snapshot().samples==0,"deactivated HMD still filtered"); });
+    add("rotation only diagnostics report no valid 6dof", [] { TrackingManager m; m.Register(7); auto p=Pose(); p.result=vr::TrackingResult_Fallback_RotationOnly; m.Process(7,p,1); auto s=m.Snapshot(); Require(!s.sourceValid && !s.outputValid && s.sourceInvalid==1,"diagnostics claim valid 6dof"); });
+    add("settings changes clear old trajectory", [] { TrackingManager m; m.Register(7); auto p=Pose(); m.Process(7,p,1); Settings s; s.smoothPosition=true; m.Configure(s); p=Pose(3); m.Process(7,p,1.01); Require(p.poseIsValid && Near(p.vecPosition[0],3),"hot reload retained incompatible history"); });
+    add("manager snapshot and callbacks are synchronized", [] { TrackingManager m; m.Register(7); std::vector<std::thread> threads; for(int j=0;j<4;j++) threads.emplace_back([&,j]{ for(int i=0;i<500;i++){ auto p=Pose(); m.Process(7,p,1+0.001*(j*500+i)); m.Snapshot(); } }); for(auto& t:threads)t.join(); Require(m.Snapshot().samples==2000,"callback counts lost under concurrency"); });
+    add("orientation smoothing follows shortest arc through wrap", [] { PoseStability f; Settings s; s.smoothOrientation=true; auto p=Pose(); p.qRotation={0.008726535498,0,0.999961923064,0}; f.Process(p,1,s); p=Pose(); p.qRotation={0.008726535498,0,-0.999961923064,0}; f.Process(p,1.01,s); Require(p.poseIsValid && std::abs(p.qRotation.y)>0.99,"wrap rotated through zero"); });
+    add("new frame after source loss still requires confirmation", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); p.poseIsValid=false; f.Process(p,1.01,s); for(int i=1;i<=3;i++){ p=Pose(10); p.vecWorldFromDriverTranslation[0]=5; f.Process(p,1.01+i*0.01,s); Require(p.poseIsValid==(i==3),"frame change bypassed loss recovery"); } });
+    add("new frame after long gap still requires confirmation", [] { PoseStability f; Settings s; auto p=Pose(); f.Process(p,1,s); for(int i=0;i<3;i++){ p=Pose(10); p.vecWorldFromDriverTranslation[0]=5; f.Process(p,2+i*0.01,s); Require(p.poseIsValid==(i==2),"frame change bypassed gap recovery"); } });
+    add("rejected inactive shim cannot replace target", [] { TrackingManager m; m.Register(7); Require(!m.RegisterActivated(9,true,false,false,false,true) && m.Snapshot().deviceIndex==7,"inactive shim replaced HMD target"); });
+    add("forced unrelated shim cannot replace target", [] { TrackingManager m; m.Register(7); Require(!m.RegisterActivated(9,true,true,true,false,true) && m.Snapshot().deviceIndex==7,"unrelated forced shim replaced HMD target"); Require(m.RegisterActivated(8,true,true,true,true,true) && m.Snapshot().deviceIndex==8,"desired active HMD not registered"); });
+    int failed=0; for(auto& t:tests){ try { t.second(); std::cout<<"PASS "<<t.first<<'\n'; } catch(const std::exception& e){ failed++; std::cout<<"FAIL "<<t.first<<": "<<e.what()<<'\n'; } }
+    std::cout<<tests.size()-failed<<'/'<<tests.size()<<" passed\n"; return failed?1:0;
+}

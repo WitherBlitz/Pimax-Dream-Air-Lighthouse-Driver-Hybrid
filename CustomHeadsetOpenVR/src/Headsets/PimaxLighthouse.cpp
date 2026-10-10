@@ -2,6 +2,7 @@
 
 #include "../Helpers/EyeTrackingOutput.h"
 #include "../Helpers/MiscHelper.h"
+#include "../Tracking/TrackingManager.h"
 
 bool PimaxLighthouseShim::IsDesiredHeadset(std::string model, vr::PropertyContainerHandle_t container){
 	std::string trackingSystem = vr::VRProperties()->GetStringProperty(container, vr::Prop_TrackingSystemName_String);
@@ -48,9 +49,15 @@ void PimaxLighthouseShim::PosTrackedDeviceActivate(uint32_t& unObjectId, vr::EVR
 #endif
 	
 	BaseHeadsetShim::PosTrackedDeviceActivate(unObjectId, returnValue);
+	const bool desired=shimActive && isActive && IsDesiredHeadset(vr::VRProperties()->GetStringProperty(container, vr::Prop_ModelNumber_String),container);
+	if(dreamair::trackingManager.RegisterActivated(unObjectId, returnValue == vr::VRInitError_None,
+		shimActive,isActive,desired,GetConfig().headsetType == Config::HeadsetType::DreamAir)){
+		DriverLog("DreamAir LH1 stability: registered headset index %u", unObjectId);
+	}
 }
 
 void PimaxLighthouseShim::SubDeactivate(){
+	dreamair::trackingManager.Unregister(static_cast<uint32_t>(deviceIndex));
 #ifdef PVR_EXISTS
 	StopEyeTracking();
 #endif

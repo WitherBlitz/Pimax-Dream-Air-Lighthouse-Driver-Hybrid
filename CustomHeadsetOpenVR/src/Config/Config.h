@@ -3,6 +3,7 @@
 #include <vector>
 #include <mutex>
 #include <tuple>
+#include "../Tracking/PoseStability.h"
 
 #if !defined(VENDOR_PIMAX) && !defined(VENDOR_SHIFTALL)
 #define VENDOR_NEUTRAL
@@ -664,6 +665,9 @@ public:
 	
 	// if devices should always be reported as tracking
 	bool forceTracking = false;
+
+	// Experimental Dream Air Lighthouse pose guard. Rendering settings are unaffected.
+	dreamair::Settings dreamAirTracking = {};
 	
 	// if only the headset should always be reported as tracking (ignores controllers and trackers)
 	bool forceTrackingHeadsetOnly = false;

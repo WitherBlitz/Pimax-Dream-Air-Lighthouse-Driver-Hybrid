@@ -7,6 +7,7 @@
 #include "nlohmann/json.hpp"
 #include "../Driver/DriverLog.h"
 #include "../Distortion/DistortionProfileConstructor.h"
+#include "../Tracking/TrackingManager.h"
 #ifdef _WIN32
 #include "Windows.h"
 #else
@@ -15,6 +16,34 @@
 
 using json = nlohmann::json;
 using ordered_json = nlohmann::ordered_json;
+
+static ordered_json TrackingSettingsJson(const dreamair::Settings& s){
+	return {{"enabled",s.enabled},{"smoothPosition",s.smoothPosition},{"smoothOrientation",s.smoothOrientation},
+		{"maxLinearSpeed",s.maxLinearSpeed},{"maxAngularSpeed",s.maxAngularSpeed},{"positionSlack",s.positionSlack},
+		{"angularSlack",s.angularSlack},{"maxReportedLinearSpeed",s.maxReportedLinearSpeed},
+		{"maxReportedAngularSpeed",s.maxReportedAngularSpeed},{"maxPoseTimeOffset",s.maxPoseTimeOffset},
+		{"resetGapSeconds",s.resetGapSeconds},{"reacquireSamples",s.reacquireSamples},
+		{"positionMinCutoff",s.positionMinCutoff},{"positionBeta",s.positionBeta},
+		{"orientationMinCutoff",s.orientationMinCutoff},{"orientationBeta",s.orientationBeta}};
+}
+
+static void ParseTrackingSettings(const json& data,dreamair::Settings& s){
+	if(!data.is_object()) return;
+	auto boolean=[&](const char* name,bool& value){ auto it=data.find(name); if(it!=data.end() && it->is_boolean()) value=it->get<bool>(); };
+	auto number=[&](const char* name,double& value){ auto it=data.find(name); if(it!=data.end() && it->is_number()) value=it->get<double>(); };
+	boolean("enabled",s.enabled); boolean("smoothPosition",s.smoothPosition); boolean("smoothOrientation",s.smoothOrientation);
+	number("maxLinearSpeed",s.maxLinearSpeed); number("maxAngularSpeed",s.maxAngularSpeed); number("positionSlack",s.positionSlack);
+	number("angularSlack",s.angularSlack); number("maxReportedLinearSpeed",s.maxReportedLinearSpeed);
+	number("maxReportedAngularSpeed",s.maxReportedAngularSpeed); number("maxPoseTimeOffset",s.maxPoseTimeOffset);
+	number("resetGapSeconds",s.resetGapSeconds); number("positionMinCutoff",s.positionMinCutoff); number("positionBeta",s.positionBeta);
+	number("orientationMinCutoff",s.orientationMinCutoff); number("orientationBeta",s.orientationBeta);
+	auto count=data.find("reacquireSamples");
+	if(count!=data.end() && count->is_number()) {
+		double v=count->get<double>();
+		if(std::isfinite(v)) s.reacquireSamples=static_cast<int>(std::clamp(v,2.0,20.0));
+	}
+	s.Sanitize();
+}
 
 
 std::string ConfigLoader::GetConfigFolder(){
@@ -410,6 +439,7 @@ void ConfigLoader::ParseConfig(){
 				if(customShaderData["colorMultiplier"]["b"].is_number()){ colorMultiplier.b = customShaderData["colorMultiplier"]["b"].get<double>(); }
 			}
 		}
+		ParseTrackingSettings(data.value("dreamAirTracking",json::object()),newConfig.dreamAirTracking);
 		if(data["forceTracking"].is_boolean()){
 			newConfig.forceTracking = data["forceTracking"].get<bool>();
 		}
@@ -449,6 +479,7 @@ void ConfigLoader::ParseConfig(){
 			Config oldConfig = driverConfig;
 			driverConfigOld = driverConfig;
 			driverConfig = newConfig;
+			dreamair::trackingManager.Configure(newConfig.dreamAirTracking,newConfig.forceTracking,newConfig.forceTrackingHeadsetOnly);
 			freeLighthouseOverrides(oldConfig.lighthouseOverrides);
 		}
 	}catch(const std::exception& e){
@@ -663,6 +694,7 @@ void ConfigLoader::WriteInfo(){
 					{"b", defaultSettings.customShader.colorMultiplier.b},
 				}},
 			}},
+			{"dreamAirTracking", TrackingSettingsJson(defaultSettings.dreamAirTracking)},
 			{"forceTracking", defaultSettings.forceTracking},
 			{"forceTrackingHeadsetOnly", defaultSettings.forceTrackingHeadsetOnly},
 			{"takeCompositorScreenshots", defaultSettings.takeCompositorScreenshots},
@@ -813,6 +845,19 @@ void ConfigLoader::WriteDiagnosticInfo(){
 	};
 	diagnosticFile << data.dump(1, '\t');
 	diagnosticFile.close();
+	// Separate filename prevents the released private-only helper from overwriting these counters.
+	const auto s=dreamair::trackingManager.Snapshot();
+	const double now=std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	ordered_json tracking={{"build",driverVersion},{"deviceIndex",s.deviceIndex},{"enabled",s.enabled},
+		{"smoothPosition",s.smoothPosition},{"smoothOrientation",s.smoothOrientation},{"samples",s.samples},
+		{"forceTrackingRequested",s.forceTrackingRequested},
+		{"sourceInvalid",s.sourceInvalid},{"malformed",s.malformed},{"jumps",s.jumps},{"reacquiring",s.reacquiring},
+		{"frameResets",s.frameResets},{"gapResets",s.gapResets},{"stale",s.stale},
+		{"sourceValid",s.sourceValid},{"sourceResult",s.sourceResult},{"outputValid",s.outputValid},
+		{"lastDecision",dreamair::DecisionName(s.lastDecision)},
+		{"secondsSinceLastSample",s.samples ? ordered_json(now-s.lastArrival) : ordered_json(nullptr)}};
+	std::ofstream trackingFile(GetConfigFolder()+"dreamair-tracking.json");
+	if(trackingFile.is_open()) trackingFile<<tracking.dump(1,'\t');
 }
 
 void ConfigLoader::WriteDiagnosticInfoThread(){

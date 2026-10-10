@@ -22,6 +22,7 @@
 #include "../Helpers/MiscHelper.h"
 
 #include "../Config/ConfigLoader.h"
+#include "../Tracking/TrackingManager.h"
 
 bool lockedOut = false;
 
@@ -317,12 +318,8 @@ bool CustomHeadsetDeviceProvider::SendVendorEvent(uint32_t unWhichDevice, vr::EV
 }
 
 bool CustomHeadsetDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::DriverPose_t &pose){
-	if(driverConfig.forceTracking || (driverConfig.forceTrackingHeadsetOnly && openVRID == 0)){
-		pose.poseIsValid = true;
-		if(pose.result != vr::TrackingResult_Fallback_RotationOnly){
-			pose.result = vr::TrackingResult_Running_OK;
-		}
-	}
+	const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	dreamair::trackingManager.Process(openVRID, pose, now);
 	return true;
 }
 
