@@ -4,16 +4,16 @@ $sandbox=Join-Path (Split-Path -Parent $repo) ('launcher-host-tests\'+[guid]::Ne
 [IO.Directory]::CreateDirectory($sandbox) | Out-Null
 Copy-Item -LiteralPath (Join-Path $repo 'Tools\Package\Launcher-Elevated.ps1') -Destination $sandbox
 [IO.File]::WriteAllText((Join-Path $sandbox 'Install.ps1'),@'
-param([string]$Backend)
-Write-Host ('TEST install '+$Backend)
+param([string]$Backend,[string]$Profile)
+Write-Host ('TEST install '+$Backend+' profile '+$Profile)
 '@)
 [IO.File]::WriteAllText((Join-Path $sandbox 'Rollback.ps1'),"throw 'TEST rollback failed'")
 $shell=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $hostScript=Join-Path $sandbox 'Launcher-Elevated.ps1'
 $log=Join-Path $sandbox 'success.txt'
-& $shell -NoLogo -NoProfile -ExecutionPolicy Bypass -File $hostScript -Operation Install-OpenPort -LogPath $log
-if ($LASTEXITCODE -ne 0 -or !(Get-Content -LiteralPath $log -Raw).Contains('TEST install OpenPort')) { throw 'Success log/exit code missing.' }
-Write-Host 'PASS elevation host forwards backend and captures output'
+& $shell -NoLogo -NoProfile -ExecutionPolicy Bypass -File $hostScript -Operation Install-OpenPort -LogPath $log -Profile Pimax
+if ($LASTEXITCODE -ne 0 -or !(Get-Content -LiteralPath $log -Raw).Contains('TEST install OpenPort profile Pimax')) { throw 'Success profile/log/exit code missing.' }
+Write-Host 'PASS elevation host forwards backend and selected profile and captures output'
 $failureLog=Join-Path $sandbox 'failure.txt'
 & $shell -NoLogo -NoProfile -ExecutionPolicy Bypass -File $hostScript -Operation Rollback -LogPath $failureLog
 if ($LASTEXITCODE -ne 1 -or !(Get-Content -LiteralPath $failureLog -Raw).Contains('TEST rollback failed')) { throw 'Failure log/exit code missing.' }

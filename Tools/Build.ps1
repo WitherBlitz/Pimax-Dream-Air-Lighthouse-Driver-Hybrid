@@ -16,9 +16,13 @@ try {
     $compile='"'+$vcvars+'" && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers tests\pose_stability_tests.cpp /Fe:output\Tools\PoseTests.exe /Fo:output\Tools\PoseTests.obj && output\Tools\PoseTests.exe && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers Tools\TrackingRecorder.cpp ThirdParty\openvr\lib\win64\openvr_api.lib /Fe:output\Tools\TrackingRecorder.exe /Fo:output\Tools\TrackingRecorder.obj'
     & cmd.exe /d /c $compile
     if ($LASTEXITCODE) { throw "Tests or recorder build failed: $LASTEXITCODE" }
+    $nativeCompile='"'+$vcvars+'" && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers tests\native_pose_tests.cpp /Fe:output\Tools\NativePoseTests.exe /Fo:output\Tools\NativePoseTests.obj && output\Tools\NativePoseTests.exe'
+    & cmd.exe /d /c $nativeCompile
+    if ($LASTEXITCODE) { throw "Native pose tests failed: $LASTEXITCODE" }
     $floorCompile='"'+$vcvars+'" && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers /I ThirdParty\json\include tests\floor_height_tests.cpp /Fe:output\Tools\FloorTests.exe /Fo:output\Tools\FloorTests.obj && output\Tools\FloorTests.exe && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers /I ThirdParty\json\include Tools\FloorHeight.cpp ThirdParty\openvr\lib\win64\openvr_api.lib /Fe:output\Tools\FloorHeight.exe /Fo:output\Tools\FloorHeight.obj'
     & cmd.exe /d /c $floorCompile
     if ($LASTEXITCODE) { throw "Floor tests or tool build failed: $LASTEXITCODE" }
     Copy-Item -LiteralPath (Join-Path $repo 'ThirdParty\openvr\bin\win64\openvr_api.dll') -Destination (Join-Path $repo 'output\Tools\openvr_api.dll') -Force
     & (Join-Path $PSScriptRoot 'Build-Launcher.ps1')
+    & (Join-Path $repo 'tests\native_profile_tests.ps1')
 } finally { Pop-Location }

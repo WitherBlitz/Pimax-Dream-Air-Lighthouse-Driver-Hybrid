@@ -8,6 +8,7 @@
 #include "../Driver/DriverLog.h"
 #include "../Distortion/DistortionProfileConstructor.h"
 #include "../Tracking/TrackingManager.h"
+#include "../Tracking/NativePoseBridge.h"
 #ifdef _WIN32
 #include "Windows.h"
 #else
@@ -440,6 +441,7 @@ void ConfigLoader::ParseConfig(){
 			}
 		}
 		ParseTrackingSettings(data.value("dreamAirTracking",json::object()),newConfig.dreamAirTracking);
+		if(data["dreamAirPoseSource"].is_string() && data["dreamAirPoseSource"]=="Pimax")newConfig.dreamAirPoseSource="Pimax";
 		if(data["forceTracking"].is_boolean()){
 			newConfig.forceTracking = data["forceTracking"].get<bool>();
 		}
@@ -480,6 +482,7 @@ void ConfigLoader::ParseConfig(){
 			driverConfigOld = driverConfig;
 			driverConfig = newConfig;
 			dreamair::trackingManager.Configure(newConfig.dreamAirTracking,newConfig.forceTracking,newConfig.forceTrackingHeadsetOnly);
+			dreamair::nativePoseBridge.Configure(newConfig.dreamAirPoseSource=="Pimax");
 			freeLighthouseOverrides(oldConfig.lighthouseOverrides);
 		}
 	}catch(const std::exception& e){
@@ -695,6 +698,7 @@ void ConfigLoader::WriteInfo(){
 				}},
 			}},
 			{"dreamAirTracking", TrackingSettingsJson(defaultSettings.dreamAirTracking)},
+			{"dreamAirPoseSource",defaultSettings.dreamAirPoseSource},
 			{"forceTracking", defaultSettings.forceTracking},
 			{"forceTrackingHeadsetOnly", defaultSettings.forceTrackingHeadsetOnly},
 			{"takeCompositorScreenshots", defaultSettings.takeCompositorScreenshots},
@@ -847,6 +851,7 @@ void ConfigLoader::WriteDiagnosticInfo(){
 	diagnosticFile.close();
 	// Separate filename prevents the released private-only helper from overwriting these counters.
 	const auto s=dreamair::trackingManager.Snapshot();
+	const auto native=dreamair::nativePoseBridge.Snapshot();
 	const double now=std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	ordered_json tracking={{"build",driverVersion},{"deviceIndex",s.deviceIndex},{"enabled",s.enabled},
 		{"smoothPosition",s.smoothPosition},{"smoothOrientation",s.smoothOrientation},{"samples",s.samples},
@@ -856,6 +861,11 @@ void ConfigLoader::WriteDiagnosticInfo(){
 		{"sourceValid",s.sourceValid},{"sourceResult",s.sourceResult},{"outputValid",s.outputValid},
 		{"lastDecision",dreamair::DecisionName(s.lastDecision)},
 		{"secondsSinceLastSample",s.samples ? ordered_json(now-s.lastArrival) : ordered_json(nullptr)}};
+	tracking["poseSource"]=native.enabled?"Pimax":"Lighthouse";
+	tracking["pimaxPose"]={{"aligned",native.aligned},{"sourceValid",native.pimaxValid},{"samples",native.pimaxSamples},{"invalid",native.pimaxInvalid},
+		{"secondsSinceLastSample",native.pimaxSamples?ordered_json(now-native.lastPimaxArrival):ordered_json(nullptr)},
+		{"lighthouseSourceValid",native.lighthouseValid},{"lighthouseSamples",native.lighthouseSamples},{"lighthouseInvalid",native.lighthouseInvalid},
+		{"secondsSinceLastLighthouseSample",native.lighthouseSamples?ordered_json(now-native.lastLighthouseArrival):ordered_json(nullptr)}};
 	std::ofstream trackingFile(GetConfigFolder()+"dreamair-tracking.json");
 	if(trackingFile.is_open()) trackingFile<<tracking.dump(1,'\t');
 }

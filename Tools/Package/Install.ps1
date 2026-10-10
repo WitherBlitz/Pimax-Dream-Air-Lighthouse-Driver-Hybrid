@@ -1,6 +1,6 @@
 param(
     [ValidateSet('Play','OpenPort')][string]$Backend='Play',
-    [ValidateSet('Guard','Jitter','Smooth','Baseline')][string]$Profile='Guard',
+    [ValidateSet('Guard','Jitter','Smooth','Baseline','Pimax')][string]$Profile='Guard',
     [string]$SandboxRoot
 )
 . (Join-Path $PSScriptRoot 'DriverTools.ps1')

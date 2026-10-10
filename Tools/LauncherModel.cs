@@ -39,6 +39,8 @@ namespace DreamAirLauncher {
         private string Required(string name) { string path=Path.Combine(Root,name);if(!File.Exists(path))throw new FileNotFoundException("Release file is missing. Extract the complete ZIP and keep the launcher with it.",path);return path; }
         public Command Build(Operation operation,string logPath,string profile,HeightUnit unit,decimal first,decimal second) {
             var command=new Command { WorkingDirectory=Root,LogPath=logPath };
+            if(operation==Operation.Profile || operation==Operation.InstallPlay || operation==Operation.InstallOpenPort)
+                if(profile!="Guard" && profile!="Jitter" && profile!="Smooth" && profile!="Baseline" && profile!="Pimax")throw new ArgumentException("Unknown tracking profile.");
             if(operation==Operation.HeadsetSettings) {
                 command.FileName=Required(Path.Combine("CustomHeadsetGUI","custom-headset-gui.exe"));command.Arguments="";command.DirectGui=true;command.WorkingDirectory=Path.GetDirectoryName(command.FileName);return command;
             }
@@ -48,7 +50,6 @@ namespace DreamAirLauncher {
                     Required(operation==Operation.Rollback?"Rollback.ps1":"Install.ps1");script="Launcher-Elevated.ps1";command.Elevate=true;
                     extra.AddRange(new[]{"-Operation",operation==Operation.InstallPlay?"Install-Play":(operation==Operation.InstallOpenPort?"Install-OpenPort":"Rollback"),"-LogPath",Path.GetFullPath(logPath)});break;
                 case Operation.Profile:
-                    if(profile!="Guard" && profile!="Jitter" && profile!="Smooth" && profile!="Baseline")throw new ArgumentException("Unknown tracking profile.");
                     script="Set-Profile.ps1";extra.AddRange(new[]{"-Profile",profile});break;
                 case Operation.FloorPreset:script="Floor-Height.ps1";extra.Add("-Preset6ft3");break;
                 case Operation.FloorRead:script="Floor-Height.ps1";extra.Add("-Read");break;
@@ -60,6 +61,7 @@ namespace DreamAirLauncher {
                 case Operation.Diagnostics:script="Collect-Diagnostics.ps1";break;
                 default:throw new ArgumentException("Unknown launcher operation.");
             }
+            if(operation==Operation.InstallPlay || operation==Operation.InstallOpenPort)extra.AddRange(new[]{"-Profile",profile});
             command.FileName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
             var arguments=new List<string>{"-NoLogo","-NoProfile","-ExecutionPolicy","Bypass","-File",Required(script)};arguments.AddRange(extra);command.Arguments=Join(arguments);return command;
         }

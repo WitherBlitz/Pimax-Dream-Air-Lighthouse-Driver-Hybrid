@@ -27,7 +27,7 @@ $steam=Join-Path $root 'SteamConfig\steamvr.vrsettings'
 $cfgHash=File-Hash $cfg; $steamHash=File-Hash $steam
 & (Join-Path $Package 'Install.ps1') -SandboxRoot $root -Backend Play
 $settings=Read-JsonOrEmpty $cfg
-Check (!$settings.forceTracking -and $settings.dreamAirTracking.enabled -and !$settings.dreamAirTracking.smoothPosition) 'Default guard incorrect.'
+Check ($settings.forceTracking -and $settings.dreamAirTracking.enabled -and !$settings.dreamAirTracking.smoothPosition) 'Default guard or force preservation incorrect.'
 Check ($settings.dreamAir.ipd -eq 64.1 -and $settings.dreamAir.enableEyeTracking -and $settings.unknownUserValue.x -eq 3) 'User settings lost.'
 Check ($settings.onlyHandlePrivateFunctionality) 'Play helper not enabled.'
 Check ((Get-Content -LiteralPath (Join-Path $root 'CustomHeadset\Distortion\custom.json') -Raw) -eq 'do not touch') 'Distortion modified.'
@@ -36,17 +36,22 @@ $cases++; Write-Host 'PASS Play install preserves settings and distortion'
 Check ((Read-JsonOrEmpty $cfg).dreamAirTracking.smoothPosition) 'Jitter profile not applied.'
 & (Join-Path $Package 'Set-Profile.ps1') -SandboxRoot $root -Profile Baseline
 $settings=Read-JsonOrEmpty $cfg
-Check (!$settings.dreamAirTracking.enabled -and !$settings.forceTracking) 'Baseline incorrect.'
-$cases++; Write-Host 'PASS profile changes preserve forced-tracking-off baseline'
+Check (!$settings.dreamAirTracking.enabled -and $settings.forceTracking) 'Baseline or force preservation incorrect.'
+$cases++; Write-Host 'PASS profile changes preserve explicit forced tracking'
+& (Join-Path $Package 'Set-Profile.ps1') -SandboxRoot $root -Profile Pimax
+$settings=Read-JsonOrEmpty $cfg
+Check ($settings.dreamAirPoseSource -eq 'Pimax' -and !$settings.dreamAirTracking.enabled -and $settings.forceTracking) 'Pimax profile or force preservation incorrect.'
+$cases++; Write-Host 'PASS Pimax profile selects native source without changing force flags'
 & (Join-Path $Package 'Rollback.ps1') -SandboxRoot $root
 Check ((File-Hash $cfg) -eq $cfgHash -and (File-Hash $steam) -eq $steamHash) 'Rollback was not byte exact.'
 Check (Test-Path -LiteralPath (Join-Path $root 'SteamVR\drivers\CustomHeadsetOpenVR\original.txt')) 'Main driver not restored.'
 Check (Test-Path -LiteralPath (Join-Path $root 'SteamVR\drivers\CustomHeadsetOpenVR_Private\original.txt')) 'Prior helper not restored.'
 $cases++; Write-Host 'PASS rollback restores both old drivers and exact settings bytes'
 $empty=New-Sandbox 'empty'
-& (Join-Path $Package 'Install.ps1') -SandboxRoot $empty -Backend OpenPort
+& (Join-Path $Package 'Install.ps1') -SandboxRoot $empty -Backend OpenPort -Profile Pimax
 Check (!(Test-Path -LiteralPath (Join-Path $empty 'SteamVR\drivers\CustomHeadsetOpenVR_Private'))) 'OpenPort installed private helper.'
 Check (!(Read-JsonOrEmpty (Join-Path $empty 'CustomHeadset\settings.json')).onlyHandlePrivateFunctionality) 'OpenPort private mode incorrect.'
+Check ((Read-JsonOrEmpty (Join-Path $empty 'CustomHeadset\settings.json')).dreamAirPoseSource -eq 'Pimax') 'Install did not select native Pimax source.'
 & (Join-Path $Package 'Rollback.ps1') -SandboxRoot $empty
 Check (!(Test-Path -LiteralPath (Join-Path $empty 'CustomHeadset\settings.json'))) 'Originally absent settings survived rollback.'
 Check (!(Test-Path -LiteralPath (Join-Path $empty 'SteamConfig\steamvr.vrsettings'))) 'Originally absent SteamVR settings survived rollback.'
@@ -63,4 +68,4 @@ $rejected=$false
 try { Assert-ChildPath (Join-Path $root 'SteamVR\drivers') (Join-Path $root 'outside') | Out-Null } catch { $rejected=$true }
 Check $rejected 'Unsafe path accepted.'
 $cases++; Write-Host 'PASS out-of-root destructive targets rejected'
-Write-Host "$cases/6 installer cases passed"
+Write-Host "$cases/7 installer cases passed"

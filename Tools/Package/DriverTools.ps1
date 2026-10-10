@@ -94,13 +94,13 @@ function Get-Profile([string]$Profile) {
         'Jitter' { $guard.smoothPosition=$true }
         'Smooth' { $guard.smoothPosition=$true; $guard.smoothOrientation=$true }
         'Baseline' { $guard.enabled=$false }
+        'Pimax' { $guard.enabled=$false }
         default { throw "Unknown profile: $Profile" }
     }
     return $guard
 }
 function Apply-Profile($Settings,[string]$Profile) {
     Set-JsonProperty $Settings 'dreamAirTracking' (Get-Profile $Profile)
-    Set-JsonProperty $Settings 'forceTracking' $false
-    Set-JsonProperty $Settings 'forceTrackingHeadsetOnly' $false
+    Set-JsonProperty $Settings 'dreamAirPoseSource' $(if($Profile -eq 'Pimax'){'Pimax'}else{'Lighthouse'})
     return $Settings
 }

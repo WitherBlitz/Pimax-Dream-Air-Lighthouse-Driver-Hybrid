@@ -2,8 +2,38 @@
 #include "Hooking.h"
 #include "InterfaceHookInjector.h"
 #include "../DeviceProvider.h"
+#include "../../Tracking/NativePoseBridge.h"
+#include "../../Tracking/TrackingManager.h"
+#include <chrono>
+#include <mutex>
 
 static CustomHeadsetDeviceProvider *Driver = nullptr;
+// Serialize the original HMD source with native submissions. The owning host
+// is captured from the Lighthouse callback, never from our own driver host.
+static std::recursive_mutex poseSubmissionMutex;
+using PoseCallback=void(*)(vr::IVRServerDriverHost*,uint32_t,const vr::DriverPose_t&,uint32_t);
+static PoseCallback owningPoseCallback=nullptr;
+static vr::IVRServerDriverHost* owningPoseHost=nullptr;
+static uint32_t owningPoseIndex=vr::k_unTrackedDeviceIndexInvalid;
+static double PoseClock(){return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();}
+static bool ObserveLighthousePose(vr::IVRServerDriverHost* host,uint32_t index,const vr::DriverPose_t& pose,PoseCallback callback,double arrival){
+	if(host==vr::VRServerDriverHost())return true;
+	const auto target=dreamair::nativePoseBridge.Snapshot().deviceIndex;
+	if(index==target && index!=vr::k_unTrackedDeviceIndexInvalid){owningPoseHost=host;owningPoseCallback=callback;owningPoseIndex=index;}
+	return dreamair::nativePoseBridge.Observe(index,pose,arrival);
+}
+
+bool PublishPimaxPose(uint32_t index,const vr::DriverPose_t& nativePose,double queryArrival){
+	std::lock_guard<std::recursive_mutex> submissionLock(poseSubmissionMutex);
+	const double arrival=PoseClock();
+	vr::DriverPose_t pose{};
+	if(!dreamair::nativePoseBridge.Prepare(index,dreamair::RebaseNativePose(nativePose,queryArrival,arrival),arrival,pose))return false;
+	if(index!=owningPoseIndex || !owningPoseHost || !owningPoseCallback)return false;
+	dreamair::trackingManager.Process(index,pose,arrival);
+	pose.poseTimeOffset-=PoseClock()-arrival;
+	owningPoseCallback(owningPoseHost,index,pose,sizeof(pose));
+	return true;
+}
 
 static Hook<void*(*)(vr::IVRDriverContext *, const char *, vr::EVRInitError *)> 
 	GetGenericInterfaceHook("IVRDriverContext::GetGenericInterface");
@@ -19,20 +49,30 @@ static Hook<void(*)(vr::IVRServerDriverHost *_this, const char *pchDeviceSerialN
 
 static void DetourTrackedDevicePoseUpdated005(vr::IVRServerDriverHost *_this, uint32_t unWhichDevice, const vr::DriverPose_t &newPose, uint32_t unPoseStructSize)
 {
+	const double arrival=PoseClock();
+	std::lock_guard<std::recursive_mutex> submissionLock(poseSubmissionMutex);
+	if(!ObserveLighthousePose(_this,unWhichDevice,newPose,TrackedDevicePoseUpdatedHook005.originalFunc,arrival))return;
 	//TRACE("ServerTrackedDeviceProvider::DetourTrackedDevicePoseUpdated(%d)", unWhichDevice);
-	auto pose = newPose;
+	const double submission=PoseClock();
+	auto pose = dreamair::RebaseNativePose(newPose,arrival,submission);
 	if (Driver->HandleDevicePoseUpdated(unWhichDevice, pose))
 	{
+		pose.poseTimeOffset-=PoseClock()-submission;
 		TrackedDevicePoseUpdatedHook005.originalFunc(_this, unWhichDevice, pose, unPoseStructSize);
 	}
 }
 
 static void DetourTrackedDevicePoseUpdated006(vr::IVRServerDriverHost *_this, uint32_t unWhichDevice, const vr::DriverPose_t &newPose, uint32_t unPoseStructSize)
 {
+	const double arrival=PoseClock();
+	std::lock_guard<std::recursive_mutex> submissionLock(poseSubmissionMutex);
+	if(!ObserveLighthousePose(_this,unWhichDevice,newPose,TrackedDevicePoseUpdatedHook006.originalFunc,arrival))return;
 	//TRACE("ServerTrackedDeviceProvider::DetourTrackedDevicePoseUpdated(%d)", unWhichDevice);
-	auto pose = newPose;
+	const double submission=PoseClock();
+	auto pose = dreamair::RebaseNativePose(newPose,arrival,submission);
 	if (Driver->HandleDevicePoseUpdated(unWhichDevice, pose))
 	{
+		pose.poseTimeOffset-=PoseClock()-submission;
 		TrackedDevicePoseUpdatedHook006.originalFunc(_this, unWhichDevice, pose, unPoseStructSize);
 	}
 }

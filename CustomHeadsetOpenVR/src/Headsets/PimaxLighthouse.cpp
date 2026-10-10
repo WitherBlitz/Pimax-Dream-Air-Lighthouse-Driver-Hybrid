@@ -3,6 +3,9 @@
 #include "../Helpers/EyeTrackingOutput.h"
 #include "../Helpers/MiscHelper.h"
 #include "../Tracking/TrackingManager.h"
+#include "../Tracking/NativePoseBridge.h"
+#include "../Driver/Hooking/InterfaceHookInjector.h"
+#include <chrono>
 
 bool PimaxLighthouseShim::IsDesiredHeadset(std::string model, vr::PropertyContainerHandle_t container){
 	std::string trackingSystem = vr::VRProperties()->GetStringProperty(container, vr::Prop_TrackingSystemName_String);
@@ -52,12 +55,14 @@ void PimaxLighthouseShim::PosTrackedDeviceActivate(uint32_t& unObjectId, vr::EVR
 	const bool desired=shimActive && isActive && IsDesiredHeadset(vr::VRProperties()->GetStringProperty(container, vr::Prop_ModelNumber_String),container);
 	if(dreamair::trackingManager.RegisterActivated(unObjectId, returnValue == vr::VRInitError_None,
 		shimActive,isActive,desired,GetConfig().headsetType == Config::HeadsetType::DreamAir)){
+		dreamair::nativePoseBridge.Register(unObjectId);
 		DriverLog("DreamAir LH1 stability: registered headset index %u", unObjectId);
 	}
 }
 
 void PimaxLighthouseShim::SubDeactivate(){
 	dreamair::trackingManager.Unregister(static_cast<uint32_t>(deviceIndex));
+	dreamair::nativePoseBridge.Unregister(static_cast<uint32_t>(deviceIndex));
 #ifdef PVR_EXISTS
 	StopEyeTracking();
 #endif
@@ -86,6 +91,34 @@ void PimaxLighthouseShim::RunFrame(){
 #endif
 
 	BaseHeadsetShim::RunFrame();
+	// Keep native pose updates independent of Lighthouse callback delivery.
+	// Pimax's pose is already at the head reference; the bridge supplies the
+	// fixed transform into the existing SteamVR room, without recentering it.
+#ifdef PVR_EXISTS
+	if(GetConfig().headsetType==Config::HeadsetType::DreamAir && dreamair::nativePoseBridge.Snapshot().enabled){
+		vr::DriverPose_t pose{};
+		pose.qRotation.w=pose.qWorldFromDriverRotation.w=pose.qDriverFromHeadRotation.w=1;
+		pvrTrackingState tracking{};pvrHmdStatus status{};
+		pvrResult trackingResult=pvr_invalid_param,statusResult=pvr_invalid_param;
+		double now=0,queryArrival=0;
+		{
+			shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
+			auto session=GetPvrSession();
+			queryArrival=std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+			if(session){now=GetPvrTime();trackingResult=pvr_getTrackingState(session,now,&tracking);statusResult=pvr_getHmdStatus(session,&status);}
+		}
+		const auto& head=tracking.HeadPose;
+		pose.deviceIsConnected=statusResult==pvr_success && status.ServiceReady && status.HmdPresent && !status.ShouldQuit;
+		pose.poseIsValid=trackingResult==pvr_success && pose.deviceIsConnected && (head.StatusFlags&3)==3;
+		pose.result=pose.poseIsValid?vr::TrackingResult_Running_OK:vr::TrackingResult_Running_OutOfRange;
+		pose.poseTimeOffset=head.TimeInSeconds-now;
+		pose.qRotation={head.ThePose.Orientation.w,head.ThePose.Orientation.x,head.ThePose.Orientation.y,head.ThePose.Orientation.z};
+		pose.vecPosition[0]=head.ThePose.Position.x;pose.vecPosition[1]=head.ThePose.Position.y;pose.vecPosition[2]=head.ThePose.Position.z;
+		pose.vecVelocity[0]=head.LinearVelocity.x;pose.vecVelocity[1]=head.LinearVelocity.y;pose.vecVelocity[2]=head.LinearVelocity.z;
+		pose.vecAngularVelocity[0]=head.AngularVelocity.x;pose.vecAngularVelocity[1]=head.AngularVelocity.y;pose.vecAngularVelocity[2]=head.AngularVelocity.z;
+		PublishPimaxPose(static_cast<uint32_t>(deviceIndex),pose,queryArrival);
+	}
+#endif
 	
 	if(GetInfo().directConnected){
 		// reconnect the USB

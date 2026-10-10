@@ -668,6 +668,7 @@ public:
 
 	// Experimental Dream Air Lighthouse pose guard. Rendering settings are unaffected.
 	dreamair::Settings dreamAirTracking = {};
+	std::string dreamAirPoseSource = "Lighthouse";
 	
 	// if only the headset should always be reported as tracking (ignores controllers and trackers)
 	bool forceTrackingHeadsetOnly = false;
