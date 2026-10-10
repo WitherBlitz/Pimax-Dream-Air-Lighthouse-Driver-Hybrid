@@ -1,3 +1,5 @@
+**This driver was created and compiled entirely by GPT 6 Astra and 6.1 Sol with interference from WitherBlitz.**
+
 # Dream Air Lighthouse Driver Hybrid
 
 An unofficial fork of [sboys3/CustomHeadsetOpenVR](https://github.com/sboys3/CustomHeadsetOpenVR) for the Pimax Dream Air with Lighthouse 1.0 tracking. It combines Pimax's native headset poses with the existing custom renderer and distortion profiles, and aligns Lighthouse controllers and trackers to the headset's floor space.
