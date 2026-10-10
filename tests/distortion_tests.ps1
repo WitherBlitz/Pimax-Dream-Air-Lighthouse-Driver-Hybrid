@@ -75,6 +75,51 @@ Test 'A malformed existing default cannot be silently replaced by the bundled pr
     $rejected=$false;try{Apply $root $default}catch{$rejected=$true}
     Check ($rejected -and (Hash $file) -eq $hash -and !(Test-Path -LiteralPath (Join-Path $root 'CustomHeadset\settings.json'))) 'Bad existing file was replaced or selected.'
 }
+foreach($fixture in @(
+    @('red singleton','"distortions":[0,0,55,117],"distortionsRed":[0,0.3]'),
+    @('blue duplicate degree','"distortions":[0,0,55,117],"distortionsBlue":[0,-0.3,0,-0.4]'),
+    @('color float-collapsed degree','"distortions":[0,0,55,117],"distortionsRed":[20.00000001,0.3,20.00000002,0.4]'),
+    @('main float-collapsed degree','"distortions":[0,0,20.00000001,50,20.00000002,51]'),
+    @('main float overflow','"distortions":[0,0,55,1e100]'),
+    @('color float overflow','"distortions":[0,0,55,117],"distortionsRed":[0,0.3,55,1e100]'),
+    @('offset float overflow','"distortions":[0,0,55,117],"offsetX":1e100'),
+    @('optional schema case','"distortions":[0,0,55,117],"DistortionsRed":[0,0.3,55,0.4]'))){
+    Test "Reject $($fixture[0]) before settings profile or backup writes" {
+        $root=New-Sandbox;$file=Join-Path $root 'CustomHeadset\settings.json';$profile=Join-Path $root 'CustomHeadset\Distortion\Unsafe.json'
+        [IO.File]::WriteAllText($file,'{"dreamAir":{"distortionProfile":"keep"},"forceTracking":true}')
+        [IO.File]::WriteAllText($profile,('{"device":"DreamAir","type":"RadialBezier",'+$fixture[1]+'}'))
+        $hash=Hash $file;$profileHash=Hash $profile;$backups=@(Get-ChildItem -LiteralPath (Join-Path $Package 'DistortionBackups') -Filter *.json).Count
+        $rejected=$false;try{Apply $root 'Unsafe'}catch{$rejected=$true}
+        Check ($rejected -and (Hash $file) -eq $hash -and (Hash $profile) -eq $profileHash -and @(Get-ChildItem -LiteralPath (Join-Path $Package 'DistortionBackups') -Filter *.json).Count -eq $backups) 'Unsafe profile accepted or files/backups changed.'
+    }
+}
+Test 'Required schema field casing is exact and cannot silently fall back in the native parser' {
+    $root=New-Sandbox;$file=Join-Path $root 'CustomHeadset\settings.json';[IO.File]::WriteAllText($file,'{"dreamAir":{"distortionProfile":"keep"}}');$hash=Hash $file
+    [IO.File]::WriteAllText((Join-Path $root 'CustomHeadset\Distortion\Case.json'),'{"Device":"DreamAir","Type":"RadialBezier","Distortions":[0,0,55,117]}')
+    $rejected=$false;try{Apply $root 'Case'}catch{$rejected=$true}
+    Check ($rejected -and (Hash $file) -eq $hash) 'Incorrectly cased schema selected or settings changed.'
+}
+Test 'Commented profiles retain quoted markers escaped quotes negative offsets and exact profile bytes' {
+    $root=New-Sandbox;$profile=Join-Path $root 'CustomHeadset\Distortion\Commented.json'
+    $json=@'
+{ // line comment
+"device":"DreamAir", /* block comment */ "type":"RadialBezier","distortions":[0,0,55,117],
+"distortionsRed":[],"distortionsBlue":[0,-0.3,55,-0.3],
+"description":"https://example.test/ // literal /* literal */ \"quoted\" and \\ path"}
+'@
+    [IO.File]::WriteAllText($profile,$json);$hash=Hash $profile
+    Check ((Read-DistortionJson $profile).description -ceq 'https://example.test/ // literal /* literal */ "quoted" and \ path') 'Quoted markers or escape sequences changed while reading.'
+    Apply $root 'Commented'
+    Check ((Read-JsonOrEmpty (Join-Path $root 'CustomHeadset\settings.json')).dreamAir.distortionProfile -ceq 'Commented' -and (Hash $profile) -eq $hash) 'Valid commented profile rejected or rewritten.'
+}
+Test 'Comment removal preserves token separation and rejects unterminated comments without writes' {
+    foreach($json in @('{"device":"DreamAir","type":"RadialBezier","distortions":[0,0,55,1/* comment */17]}','{"device":"DreamAir","type":"RadialBezier","distortions":[0,0,55,117]/* unterminated')){
+        $root=New-Sandbox;$file=Join-Path $root 'CustomHeadset\settings.json';[IO.File]::WriteAllText($file,'{"dreamAir":{"distortionProfile":"keep"}}');$hash=Hash $file
+        [IO.File]::WriteAllText((Join-Path $root 'CustomHeadset\Distortion\Commented.json'),$json)
+        $rejected=$false;try{Apply $root 'Commented'}catch{$rejected=$true}
+        Check ($rejected -and (Hash $file) -eq $hash) 'Invalid comment-bearing tokens selected or settings changed.'
+    }
+}
 Test 'Malformed settings reject before adding bundled data' {
     $root=New-Sandbox;$file=Join-Path $root 'CustomHeadset\settings.json';[IO.File]::WriteAllText($file,'{bad');$hash=Hash $file
     $rejected=$false;try{Apply $root $default}catch{$rejected=$true}

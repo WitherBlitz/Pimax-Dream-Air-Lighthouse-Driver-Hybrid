@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 
 namespace DreamAirLauncher {
@@ -16,27 +17,34 @@ namespace DreamAirLauncher {
             if(stem=="CON" || stem=="PRN" || stem=="AUX" || stem=="NUL" || (stem.Length==4 && (stem.StartsWith("COM") || stem.StartsWith("LPT")) && stem[3]>='1' && stem[3]<='9'))
                 throw new ArgumentException("Choose a valid distortion profile name.");
         }
-        private static Dictionary<string,object> Read(string path) {
+        private static Dictionary<string,object> Read(string path,bool allowComments=false) {
             for(string cursor=Path.GetFullPath(path);!String.IsNullOrEmpty(cursor);cursor=Path.GetDirectoryName(cursor))
                 if((File.Exists(cursor) || Directory.Exists(cursor)) && (File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)throw new IOException("Linked profile paths are unsupported.");
             var serializer=new JavaScriptSerializer { MaxJsonLength=4*1024*1024 };
-            var value=serializer.DeserializeObject(File.ReadAllText(path)) as Dictionary<string,object>;
+            string text=File.ReadAllText(path);
+            // Keep quoted strings verbatim; whitespace preserves token boundaries.
+            if(allowComments)text=Regex.Replace(text,@"(""(?:\\.|[^""\\])*"")|(/\*[\s\S]*?\*/|//[^\r\n]*)",match=>match.Groups[1].Success?match.Value:Regex.Replace(match.Value,@"[^\r\n]"," "));
+            var value=serializer.DeserializeObject(text) as Dictionary<string,object>;
             if(value==null)throw new FormatException("Expected a JSON object.");return value;
         }
         private static bool Number(object value) {
             if(!(value is byte || value is sbyte || value is short || value is ushort || value is int || value is uint || value is long || value is ulong || value is float || value is double || value is decimal))return false;
-            double number=Convert.ToDouble(value);return !Double.IsNaN(number) && !Double.IsInfinity(number);
+            float number=(float)Convert.ToDouble(value);return !Single.IsNaN(number) && !Single.IsInfinity(number);
         }
         private static bool Curve(object value,int minimum,bool increasing) {
-            var points=value as object[];if(points==null || points.Length<minimum || points.Length%2!=0)return false;
-            for(int i=0;i<points.Length;i++){if(!Number(points[i]))return false;if(increasing && i%2==0 && (Convert.ToDouble(points[i])<0 || (i>0 && Convert.ToDouble(points[i])<=Convert.ToDouble(points[i-2]))))return false;}return true;
+            var points=value as object[];if(points==null || points.Length<minimum || (points.Length>0 && points.Length<4) || points.Length%2!=0)return false;
+            for(int i=0;i<points.Length;i++){if(!Number(points[i]))return false;if(increasing && i%2==0 && ((float)Convert.ToDouble(points[i])<0 || (i>0 && (float)Convert.ToDouble(points[i])<=(float)Convert.ToDouble(points[i-2]))))return false;}return true;
         }
         private static bool Compatible(Dictionary<string,object> data) {
+            foreach(string key in data.Keys)foreach(string canonical in new[]{"device","type","distortions","distortionsRed","distortionsBlue","offsetX","offsetY","eyeRotationOffset","smoothAmount","legacySmoothing"})
+                if(String.Equals(key,canonical,StringComparison.OrdinalIgnoreCase) && key!=canonical)return false;
             object value;if(!data.TryGetValue("device",out value))return false;
             bool matches=value as string=="DreamAir";var devices=value as object[];
             if(devices!=null){foreach(var device in devices){if(!(device is string))return false;if((string)device=="DreamAir")matches=true;}}
             if(!matches || !data.TryGetValue("type",out value) || value as string!="RadialBezier" || !data.TryGetValue("distortions",out value) || !Curve(value,4,true))return false;
-            foreach(string name in new[]{"distortionsRed","distortionsBlue"})if(data.TryGetValue(name,out value) && !Curve(value,0,false))return false;
+            // Empty CA arrays retain native defaults. Nonempty arrays must form a
+            // sampleable curve after the driver narrows every point to float.
+            foreach(string name in new[]{"distortionsRed","distortionsBlue"})if(data.TryGetValue(name,out value) && !Curve(value,0,true))return false;
             foreach(string name in new[]{"offsetX","offsetY","eyeRotationOffset","smoothAmount"})if(data.TryGetValue(name,out value) && !Number(value))return false;
             if(data.TryGetValue("legacySmoothing",out value) && !(value is bool))return false;return true;
         }
@@ -57,7 +65,7 @@ namespace DreamAirLauncher {
                     try{ValidateName(name);}catch(ArgumentException){continue;}
                     if(profiles.TryGetValue(name,out builtin) && builtin)continue;
                     profiles.Remove(name);
-                    try{if(Compatible(Read(file)))profiles[name]=false;}catch(Exception){warnings.Add("Skipped invalid distortion profile: "+Path.GetFileName(file));}
+                    try{if(Compatible(Read(file,true)))profiles[name]=false;}catch(Exception){warnings.Add("Skipped invalid distortion profile: "+Path.GetFileName(file));}
                 }}catch(Exception e){warnings.Add("Could not read distortion profiles: "+e.Message);}
             }
             var names=new List<string>(profiles.Keys);names.Sort(StringComparer.OrdinalIgnoreCase);

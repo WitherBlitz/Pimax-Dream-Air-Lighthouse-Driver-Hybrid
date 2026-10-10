@@ -44,6 +44,8 @@ The launcher lists Dream Air compatible built-in profiles from the driver's live
 
 Choose a profile and click **Apply distortion**. SteamVR can stay running: the driver watches this setting and reloads it live. The launcher closes the original CustomHeadset GUI to prevent competing writes, saves the exact previous settings in **DistortionBackups**, then changes only `dreamAir.distortionProfile`. Tracking, force flags, IPD, eye rotation, other optics, floor and universe values are preserved. Existing distortion files are never overwritten. Missing, malformed, incompatible or unsafe profile names are rejected before settings are changed.
 
+Custom profile JSON may contain the driver's supported `//` and `/* */` comments. Curve validation rejects data that would become nonfinite or degenerate in the native sampler, including singleton color curves and repeated degree coordinates. Schema field names use their exact documented case.
+
 The bundled custom file is byte-identical to the requested profile: SHA256 `00B17F0D11166C0796F344EB3F414FE113E898CBDA04E9C40A94C05B0FC8806E`. Its distortion and chromatic-aberration curves come from SBoys3's camera-calibrated Dream Air Default; this is generic profile data, not personal calibration. Its description calls for zero eye rotation for 100% overlap. Applying a profile preserves your eye rotation rather than changing it automatically.
 
 For script use: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Set-Distortion.ps1 -ProfileName "Dream Air Maximum Comfort 100pct Overlap"`. Profile names are JSON filenames without the `.json` extension. The bundled file is added to the driver's distortion folder only when applying it or installing the release.

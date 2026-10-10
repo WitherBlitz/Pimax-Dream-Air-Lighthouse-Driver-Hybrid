@@ -6,6 +6,13 @@ using DreamAirLauncher;
 class LauncherTests {
     static void Check(bool ok) { if(!ok)throw new Exception("Assertion failed"); }
     static void Reject(Action action) { bool failed=false;try{action();}catch{failed=true;}Check(failed); }
+    static void CheckProfile(string root,string json,bool accepted) {
+        string release=Path.Combine(root,"catalog-review",Guid.NewGuid().ToString("N")),config=Path.Combine(release,"config"),directory=Path.Combine(config,"Distortion");Directory.CreateDirectory(directory);
+        string profile=Path.Combine(directory,"Fixture.json"),settings=Path.Combine(config,"settings.json"),before="{\"dreamAir\":{\"distortionProfile\":\"Fixture\"},\"forceTracking\":true}";
+        File.WriteAllText(profile,json);File.WriteAllText(settings,before);
+        var catalog=DistortionCatalog.Load(release,config);Check((Array.IndexOf(catalog.Names,"Fixture")>=0)==accepted);
+        Check(File.ReadAllText(settings)==before && File.ReadAllText(profile)==json);
+    }
     static int Main(string[] args) {
         if(args.Length>0 && args[0]=="--echo") { for(int i=1;i<args.Length;i++)Console.WriteLine(Convert.ToBase64String(Encoding.UTF8.GetBytes(args[i])));return 0; }
         int failed=0,total=0;
@@ -43,6 +50,24 @@ class LauncherTests {
             File.WriteAllText(Path.Combine(directory,"Dream Air Maximum Comfort 100pct Overlap.json"),"{broken");catalog=DistortionCatalog.Load(root,config);names=catalog.Names;Check(Array.IndexOf(names,"Dream Air Maximum Comfort 100pct Overlap")<0);
         });
         test("Pimax profile and install keep selected source",()=>{var c=model.Build(Operation.Profile,log,"Pimax",HeightUnit.Meters,1,0);Check(c.Arguments.Contains("Pimax"));c=model.Build(Operation.InstallOpenPort,log,"Pimax",HeightUnit.Meters,1,0);Check(c.Arguments.Contains("-Profile")&&c.Arguments.Contains("Pimax"));Reject(()=>model.Build(Operation.InstallPlay,log,"Pimax",HeightUnit.Meters,1,0));Reject(()=>model.Build(Operation.InstallOpenPort,log,"Pimax; injected",HeightUnit.Meters,1,0));});
+        test("catalog rejects nonempty singleton repeated and float-collapsed color curves without rewriting files",()=>{
+            foreach(string curve in new[]{"[0,0.3]","[0,0.3,0,0.4]","[20.00000001,0.3,20.00000002,0.4]","[55,-0.3,0,-0.4]"})
+                foreach(string channel in new[]{"distortionsRed","distortionsBlue"})CheckProfile(root,"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117],\""+channel+"\":"+curve+"}",false);
+            CheckProfile(root,"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117],\"distortionsRed\":[],\"distortionsBlue\":[0,-0.3,55,-0.3]}",true);
+        });
+        test("catalog rejects values nonfinite after native float narrowing",()=>{
+            foreach(string field in new[]{"\"distortions\":[0,0,55,1e100]","\"distortions\":[0,0,1e100,117]","\"distortions\":[0,0,55,117],\"distortionsRed\":[0,0,55,1e100]","\"distortions\":[0,0,55,117],\"offsetX\":1e100"})CheckProfile(root,"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\","+field+"}",false);
+            CheckProfile(root,"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\",\"distortions\":[0,0,20.00000001,50,20.00000002,51]}",false);
+        });
+        test("catalog retains driver-supported comments and quoted markers while refusing joined number tokens",()=>{
+            CheckProfile(root,"{ // driver-supported comment\n\"device\":\"DreamAir\",/* block */\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117],\"description\":\"https://example.test/ // literal /* literal */ \\\"quoted\\\" and \\\\ path\"}",true);
+            CheckProfile(root,"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\",\"distortions\":[0,0,55,1/* comment */17]}",false);
+            CheckProfile(root,"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117]/* unterminated",false);
+        });
+        test("catalog rejects incorrectly cased recognized schema fields",()=>{
+            CheckProfile(root,"{\"Device\":\"DreamAir\",\"Type\":\"RadialBezier\",\"Distortions\":[0,0,55,117]}",false);
+            CheckProfile(root,"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117],\"DistortionsRed\":[0,0.3,55,0.4]}",false);
+        });
         test("missing script prevents launch",()=>{File.Delete(Path.Combine(root,"Floor-Height.ps1"));Reject(()=>build(Operation.FloorPreset));});
         test("headset GUI launches from its own resource folder",()=>{var c=build(Operation.HeadsetSettings);Check(c.DirectGui && !c.Elevate && c.WorkingDirectory==Path.Combine(root,"CustomHeadsetGUI"));});
         test("background script preserves errors exit code and action log",()=>{
