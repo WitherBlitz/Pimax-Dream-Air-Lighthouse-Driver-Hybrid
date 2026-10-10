@@ -1,6 +1,16 @@
-# Dream Air LH1 0.2.0 — experimental
+# Dream Air LH1 0.3.0 — experimental
 
 This is a compiled fork of sboys3 CustomHeadsetOpenVR **1.3.0**, with an added Dream Air Lighthouse pose guard. It targets your Dream Air firmware **1.0.3**, two **Lighthouse 1.0** stations with a sync cable, and the existing **A/b** setup. Hardware support comes from Pimax/Valve's existing tracking stack; this project does not replace its optical decoder or change firmware.
+
+## Open the release
+
+Extract the **whole ZIP** into a writable folder, then double-click **DreamAir-LH1.exe**. Keep the EXE alongside the supplied scripts, driver folders and Tools; copying only the EXE will leave its actions unavailable. This Windows x64 launcher uses the .NET Framework included with Windows 10/11. It needs no developer tools.
+
+The window offers installation/backend selection, headset settings, tracking profiles, the 6 ft 3 in preset, custom heights, current-height readout, floor/driver restore, and diagnostics. Its result area shows successful output and errors; action logs are saved in **LauncherLogs**. Driver installation and driver rollback request Windows administrator elevation; normal floor/profile/diagnostic actions do not. Opening the window performs no driver or floor changes.
+
+Use **Pimax Play → Install driver** unless you explicitly use EVO OpenPort. Close SteamVR and headset settings before driver install/restore. Keep SteamVR running for floor controls, hold the headset still through the five-second delay, and leave forced tracking disabled. Close headset settings before applying a tracking profile. The existing CMD/PowerShell controls below remain available.
+
+If upgrading from an older extracted release, keep its **Backups** and **FloorBackups** folders or copy them into the new release before using restore. The launcher opens the original headset GUI for IPD/visual settings; its own controls add the tracking and floor tools. Live driver loading and floor calibration remain unverified.
 
 ## Install
 

@@ -1,8 +1,12 @@
-# Validation — Dream Air LH1 0.2.0 experimental
+# Validation — Dream Air LH1 0.3.0 experimental
 
 Built locally on 2026-10-09 from sboys3 CustomHeadsetOpenVR 1.3.0, commit `21185da63a9e4307ae876b3702a43a43044d451c`, with its pinned submodules. The public source and build scripts are in `Source.zip`; exact binary hashes and dependency revisions are in `PROVENANCE.json` and `SHA256SUMS.txt`.
 
 ## Completed checks
+
+- Windows x64 graphical **DreamAir-LH1.exe** launcher added on 2026-10-10. **10/10 launcher tests passed**, including actual Windows argument round trips, nominal height conversion, invalid-input/missing-file rejection, bounded profiles, elevation selection, original GUI working directory, and a real isolated PowerShell process preserving stdout/stderr, failure exit code and its action log.
+- **3/3 elevation-host cases passed** in Windows PowerShell 5.1 using isolated fake scripts: backend forwarding with transcript output, failure propagation with retained log, and unknown-action rejection. Actual UAC-mediated install/rollback was not invoked against the live VR installation.
+- Hidden UI smoke testing exercised unit changes, the normal asynchronous read-action pipeline, result text, and controls returning to their enabled state. The test used a marked sandbox and a fake read-only script. The launcher window was rendered and visually inspected. Opening the normal launcher performs no driver/floor changes.
 
 - Release x64 driver compiled with Visual Studio 2026 / MSVC v145. Builds use `SkipPostBuild=true`; the live SteamVR driver was not replaced. Existing upstream narrowing/conversion warnings remain.
 - **35/35 native tests passed**: source validity, finite values and quaternion normalization, jump rejection, prediction bounds, recovery, coordinate changes after loss/gaps, timestamp handling, adaptive filters, device selection, activation/deactivation, settings reload, forced-tracking precedence within the public module, and concurrent callbacks.

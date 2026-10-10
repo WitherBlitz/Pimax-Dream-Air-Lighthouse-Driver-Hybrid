@@ -20,4 +20,5 @@ try {
     & cmd.exe /d /c $floorCompile
     if ($LASTEXITCODE) { throw "Floor tests or tool build failed: $LASTEXITCODE" }
     Copy-Item -LiteralPath (Join-Path $repo 'ThirdParty\openvr\bin\win64\openvr_api.dll') -Destination (Join-Path $repo 'output\Tools\openvr_api.dll') -Force
+    & (Join-Path $PSScriptRoot 'Build-Launcher.ps1')
 } finally { Pop-Location }

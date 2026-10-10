@@ -35,8 +35,9 @@ for item in (repo / 'Tools/Package').iterdir():
     if item.is_file(): shutil.copy2(item, destination / item.name)
 tools = destination / 'Tools'
 tools.mkdir()
-for name in ['TrackingRecorder.exe', 'PoseTests.exe', 'FloorHeight.exe', 'FloorTests.exe', 'openvr_api.dll']:
+for name in ['TrackingRecorder.exe', 'PoseTests.exe', 'FloorHeight.exe', 'FloorTests.exe', 'LauncherTests.exe', 'openvr_api.dll']:
     shutil.copy2(repo / 'output/Tools' / name, tools / name)
+shutil.copy2(repo / 'output/Tools/DreamAir-LH1.exe', destination / 'DreamAir-LH1.exe')
 shutil.copy2(repo / 'LICENCE.md', destination / 'LICENCE.md')
 launches = {
     'Install-Play.cmd': ('Install.ps1', '-Backend Play'),
@@ -71,7 +72,7 @@ def sha(path):
     with path.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
 provenance = {
-    'package': 'DreamAir-LH1-0.2.0-experimental',
+    'package': 'DreamAir-LH1-0.3.0-experimental',
     'upstreamTag': '1.3.0',
     'upstreamCommit': '21185da63a9e4307ae876b3702a43a43044d451c',
     'publicForkCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip(),
@@ -81,6 +82,7 @@ provenance = {
     'upstreamGuiSha256': sha(destination / 'CustomHeadsetGUI/custom-headset-gui.exe'),
     'floorToolSha256': sha(destination / 'Tools/FloorHeight.exe'),
     'floorPresetMeters': 1.905,
+    'launcherSha256': sha(destination / 'DreamAir-LH1.exe'),
     'dependencies': subprocess.check_output(['git', 'submodule', 'status', '--recursive'], cwd=repo, text=True).strip().splitlines(),
     'hardwareValidation': 'Pending. Builds and native/sandbox tests passed; driver loading and floor commit/restore have not been performed in the live VR session.'
 }
