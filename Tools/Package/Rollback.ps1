@@ -18,7 +18,7 @@ $drivers=Join-Path $paths.Runtime 'drivers'
 foreach ($entry in @(@('CustomHeadsetOpenVR','mainExisted','previous-driver'),@('CustomHeadsetOpenVR_Private','privateExisted','previous-private'))) {
     $target=Assert-ChildPath $drivers (Join-Path $drivers $entry[0])
     Remove-DriverDirectory $drivers $target
-    if ($state.($entry[1])) { Copy-Item -LiteralPath (Join-Path $backup $entry[2]) -Destination $target -Recurse }
+    if ($state.($entry[1])) { Copy-DriverDirectory (Join-Path $backup $entry[2]) $target }
 }
 foreach ($entry in @(@($paths.Config,'settings.json','settingsExisted'),@($paths.SteamConfig,'steamvr.vrsettings','steamSettingsExisted'))) {
     $target=Assert-ChildPath $entry[0] (Join-Path $entry[0] $entry[1])

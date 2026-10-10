@@ -34,6 +34,25 @@ function Remove-DriverDirectory([string]$Parent,[string]$Child) {
     $target=Assert-ChildPath $Parent $Child
     if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
 }
+function Copy-DriverDirectory([string]$Source,[string]$Destination) {
+    $sourcePath=[IO.Path]::GetFullPath($Source)
+    $destinationPath=[IO.Path]::GetFullPath($Destination)
+    if (!(Test-Path -LiteralPath $sourcePath -PathType Container)) { throw "Driver copy source is missing: $sourcePath" }
+    # Windows PowerShell 5.1 Copy-Item fails on nested backup resources above
+    # MAX_PATH. Robocopy supports these paths without changing machine policy.
+    # Copy only: never mirror, purge or move. Preserve empty directories and
+    # copy links themselves rather than following them outside the tree.
+    $copyOptions=@('/E','/COPY:DAT','/DCOPY:DAT','/SL','/SJ','/R:0','/W:0','/NP','/NFL','/NDL','/NJH','/NJS')
+    try {
+        $report=@(& (Join-Path $env:WINDIR 'System32\robocopy.exe') $sourcePath $destinationPath @copyOptions 2>&1)
+        $copyExit=$LASTEXITCODE
+    } finally {
+        # Robocopy's successful "files copied" code is 1, not a script failure.
+        $global:LASTEXITCODE=0
+    }
+    if ($copyExit -ge 8) { throw "Driver directory copy failed (robocopy exit $copyExit): $sourcePath -> $destinationPath`n$($report -join [Environment]::NewLine)" }
+    if (!(Test-Path -LiteralPath $destinationPath -PathType Container)) { throw "Driver copy destination is missing: $destinationPath" }
+}
 function Set-JsonProperty($Object,[string]$Name,$Value) {
     $Object | Add-Member -MemberType NoteProperty -Name $Name -Value $Value -Force
 }
@@ -45,18 +64,27 @@ function Read-JsonOrEmpty([string]$Path) {
     }
     return [PSCustomObject]@{}
 }
+function Get-NativeFilePath([string]$Path) {
+    $full=[IO.Path]::GetFullPath($Path)
+    if ($full.StartsWith('\\?\')) { return $full }
+    if ($full.StartsWith('\\')) { return '\\?\UNC\'+$full.Substring(2) }
+    return '\\?\'+$full
+}
 function Write-JsonAtomic([string]$Path,$Object) {
     $parent=Split-Path -Parent $Path
-    [IO.Directory]::CreateDirectory($parent) | Out-Null
+    [IO.Directory]::CreateDirectory((Get-NativeFilePath $parent)) | Out-Null
     $temp=Join-Path $parent ('.lh1-json-'+[guid]::NewGuid().ToString()+'.tmp')
     $swapBackup=$temp+'.bak'
+    $nativePath=Get-NativeFilePath $Path
+    $nativeTemp=Get-NativeFilePath $temp
+    $nativeSwapBackup=Get-NativeFilePath $swapBackup
     try {
-        [IO.File]::WriteAllText($temp,($Object | ConvertTo-Json -Depth 100),[Text.UTF8Encoding]::new($false))
-        if (Test-Path -LiteralPath $Path) { [IO.File]::Replace($temp,$Path,$swapBackup) }
-        else { [IO.File]::Move($temp,$Path) }
+        [IO.File]::WriteAllText($nativeTemp,($Object | ConvertTo-Json -Depth 100),[Text.UTF8Encoding]::new($false))
+        if ([IO.File]::Exists($nativePath)) { [IO.File]::Replace($nativeTemp,$nativePath,$nativeSwapBackup) }
+        else { [IO.File]::Move($nativeTemp,$nativePath) }
     } finally {
-        if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force }
-        if (Test-Path -LiteralPath $swapBackup) { Remove-Item -LiteralPath $swapBackup -Force }
+        if ([IO.File]::Exists($nativeTemp)) { [IO.File]::Delete($nativeTemp) }
+        if ([IO.File]::Exists($nativeSwapBackup)) { [IO.File]::Delete($nativeSwapBackup) }
     }
 }
 function Get-Profile([string]$Profile) {

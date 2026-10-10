@@ -30,7 +30,7 @@ namespace DreamAirLauncher {
             Controls.Add(layout);
             var header=new Panel { Dock=DockStyle.Fill };
             header.Controls.Add(TextLabel("Dream Air LH1",0,0,650,38,new Font("Segoe UI",23,FontStyle.Bold)));
-            header.Controls.Add(TextLabel("Experimental release 0.3.0  |  Lighthouse 1.0  |  Sync cable A/b",2,44,750,26,null));layout.Controls.Add(header,0,0);
+            header.Controls.Add(TextLabel("Experimental release 0.3.1  |  Lighthouse 1.0  |  Sync cable A/b",2,44,750,26,null));layout.Controls.Add(header,0,0);
             actions=new Panel { Dock=DockStyle.Fill };
             var cards=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=1 };
             cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,45));cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,55));actions.Controls.Add(cards);layout.Controls.Add(actions,0,1);

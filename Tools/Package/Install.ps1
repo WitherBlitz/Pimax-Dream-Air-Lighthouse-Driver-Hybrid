@@ -31,8 +31,8 @@ $backupRoot=Join-Path $PSScriptRoot 'Backups'
 $backup=Join-Path $backupRoot ((Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString())
 [IO.Directory]::CreateDirectory($backup) | Out-Null
 $state=[PSCustomObject]@{ version=1; runtime=$paths.Runtime; config=$paths.Config; steamConfig=$paths.SteamConfig; mainExisted=(Test-Path -LiteralPath $main); privateExisted=(Test-Path -LiteralPath $private); settingsExisted=(Test-Path -LiteralPath $settingsPath); steamSettingsExisted=(Test-Path -LiteralPath $steamPath); backend=$Backend; profile=$Profile }
-if ($state.mainExisted) { Copy-Item -LiteralPath $main -Destination (Join-Path $backup 'previous-driver') -Recurse }
-if ($state.privateExisted) { Copy-Item -LiteralPath $private -Destination (Join-Path $backup 'previous-private') -Recurse }
+if ($state.mainExisted) { Copy-DriverDirectory $main (Join-Path $backup 'previous-driver') }
+if ($state.privateExisted) { Copy-DriverDirectory $private (Join-Path $backup 'previous-private') }
 if ($state.settingsExisted) { Copy-Item -LiteralPath $settingsPath -Destination (Join-Path $backup 'settings.json') }
 if ($state.steamSettingsExisted) { Copy-Item -LiteralPath $steamPath -Destination (Join-Path $backup 'steamvr.vrsettings') }
 Write-JsonAtomic (Join-Path $backup 'state.json') $state
@@ -40,8 +40,8 @@ $stageMain=Assert-ChildPath $drivers (Join-Path $drivers ('.lh1-main-'+[guid]::N
 $stagePrivate=Assert-ChildPath $drivers (Join-Path $drivers ('.lh1-private-'+[guid]::NewGuid().ToString()))
 $mutating=$false
 try {
-    Copy-Item -LiteralPath $sourceMain -Destination $stageMain -Recurse
-    if ($Backend -eq 'Play') { Copy-Item -LiteralPath $sourcePrivate -Destination $stagePrivate -Recurse }
+    Copy-DriverDirectory $sourceMain $stageMain
+    if ($Backend -eq 'Play') { Copy-DriverDirectory $sourcePrivate $stagePrivate }
     Assert-VrStopped $paths
     $mutating=$true
     Remove-DriverDirectory $drivers $main

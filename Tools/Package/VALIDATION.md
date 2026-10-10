@@ -1,8 +1,12 @@
-# Validation — Dream Air LH1 0.3.0 experimental
+# Validation — Dream Air LH1 0.3.1 experimental
 
 Built locally on 2026-10-09 from sboys3 CustomHeadsetOpenVR 1.3.0, commit `21185da63a9e4307ae876b3702a43a43044d451c`, with its pinned submodules. The public source and build scripts are in `Source.zip`; exact binary hashes and dependency revisions are in `PROVENANCE.json` and `SHA256SUMS.txt`.
 
 ## Completed checks
+
+- **0.3.1 long-path installer fix, 2026-10-10:** reproduced both connection modes failing in Windows PowerShell 5.1 with a deeply nested release folder. Robocopy replaces recursive directory Copy-Item, with copy-only options, no retries and failure-code checks; atomic JSON temporary/swap files use extended-length native paths. **4/4 new cases passed in both PowerShell 5.1 and 7**, covering >260-character resources, byte-exact backup/restore, empty directories, and an exclusively locked source refusing installation without changing the driver, settings or previous restore pointer. Tests use isolated marked sandboxes, fake drivers and real Windows file copies. The reported failed live attempt stopped during backup; the active driver hash remained unchanged.
+- A fresh read-only reviewer found no Critical, Important or actionable Minor defects in this installer change. Long-path tests cover the reported nested release layout, not arbitrary long runtime/config roots or network shares. Live driver loading remains pending; the inherited remove-before-copy behavior of manual rollback is unchanged.
+- The original **6/6 installer cases** were repeated in both PowerShell versions using actual driver payloads in separate sandbox packages. The 0.3.1 aggregate build also passed **35/35 pose, 50/50 floor, 10/10 launcher and 3/3 elevation-host tests**; no driver/floor behavior was changed by this hotfix.
 
 - Windows x64 graphical **DreamAir-LH1.exe** launcher added on 2026-10-10. **10/10 launcher tests passed**, including actual Windows argument round trips, nominal height conversion, invalid-input/missing-file rejection, bounded profiles, elevation selection, original GUI working directory, and a real isolated PowerShell process preserving stdout/stderr, failure exit code and its action log.
 - **3/3 elevation-host cases passed** in Windows PowerShell 5.1 using isolated fake scripts: backend forwarding with transcript output, failure propagation with retained log, and unknown-action rejection. Actual UAC-mediated install/rollback was not invoked against the live VR installation.

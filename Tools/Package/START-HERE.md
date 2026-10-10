@@ -1,6 +1,8 @@
-# Dream Air LH1 0.3.0 — experimental
+# Dream Air LH1 0.3.1 — experimental
 
 This is a compiled fork of sboys3 CustomHeadsetOpenVR **1.3.0**, with an added Dream Air Lighthouse pose guard. It targets your Dream Air firmware **1.0.3**, two **Lighthouse 1.0** stations with a sync cable, and the existing **A/b** setup. Hardware support comes from Pimax/Valve's existing tracking stack; this project does not replace its optical decoder or change firmware.
+
+**0.3.1 installer fix:** 0.3.0 could fail while backing up resources when extracted under a long folder path. Directory backup, staging and restore now use Windows' long-path copy support, and temporary JSON metadata uses extended-length file paths. A backup copy failure still stops installation before replacing the existing driver. If you encountered that error, extract this release and retry **Install driver** with SteamVR/headset settings closed.
 
 ## Open the release
 
