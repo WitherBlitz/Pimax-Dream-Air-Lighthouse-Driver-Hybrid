@@ -32,7 +32,7 @@ Changing into or out of Pimax mode requires SteamVR to be closed. Other filter p
 
 Use **Collect diagnostics** with SteamVR running. It saves logs/settings and a 30-second OpenVR CSV locally in **Diagnostics**. With SteamVR closed, it still collects available logs but cannot record live poses. Nothing is uploaded. The separate `%APPDATA%\CustomHeadset\dreamair-tracking.json` should show:
 
-- `build`: `1.3.0-dreamair-lh1.5-experimental`, and `deviceIndex` matching the Dream Air (normally 0).
+- `build`: `1.3.0-dreamair-lh1.6-experimental`, and `deviceIndex` matching the Dream Air (normally 0). The .7 package retains this native driver version.
 - `poseSource`: `PimaxRuntime`; increasing callback counts, genuine source validity and a fresh last-sample time.
 - The legacy `pimaxPose.aligned` field describes the old bridge and is not a success indicator for this mode. Forced runtime validity alone is insufficient.
 
