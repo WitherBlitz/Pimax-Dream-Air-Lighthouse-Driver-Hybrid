@@ -1,4 +1,4 @@
-# Dream Air LH1 0.1.0 — experimental
+# Dream Air LH1 0.2.0 — experimental
 
 This is a compiled fork of sboys3 CustomHeadsetOpenVR **1.3.0**, with an added Dream Air Lighthouse pose guard. It targets your Dream Air firmware **1.0.3**, two **Lighthouse 1.0** stations with a sync cable, and the existing **A/b** setup. Hardware support comes from Pimax/Valve's existing tracking stack; this project does not replace its optical decoder or change firmware.
 
@@ -19,6 +19,32 @@ The installer refuses to replace a running driver. It does not close games, chan
 - **Profile-Baseline.cmd**: filter disabled and forceTracking off. Useful for comparing the underlying driver behavior. This still uses the fork's upstream 1.3.0 code; it is not the exact old beta driver.
 
 Profiles reload live. All disable global `forceTracking` and `forceTrackingHeadsetOnly`. These options previously made invalid positions look valid and can turn a tracking dropout into apparent floating/drift. **Keep both flags off, including in the GUI.** The Play private helper can also hook poses; its force-tracking behavior is outside this fork's guard. Re-enabling either flag can invalidate source-status diagnostics and defeat honest tracking-loss reporting. `forceTrackingRequested` in the dedicated diagnostic file should be false. Other devices retain upstream semantics.
+
+## Floor height: 6 feet 3 inches or custom
+
+Keep SteamVR running. Hold or wear the headset at the position you want to use as the height reference, with reliable tracking. Close the CustomHeadset GUI and use **Profile-Guard.cmd** first if either force-tracking option is enabled. Floor writes refuse those flags because they can conceal invalid tracking.
+
+- **Floor-6ft3.cmd** sets SteamVR's standing floor **6 ft 3 in = 75 in = 1.905 m** below the sampled headset position. It gives you five seconds to get into position, then requires a short steady capture before applying.
+- **Floor-Custom.cmd** prompts for feet/inches, centimetres, or metres. Pressing Enter at the prompts uses 6 ft 3 in. Fractional inches are supported. Heights from 0 to 10 m are accepted.
+- **Floor-Read.cmd** reports your current tracked headset height without changing calibration.
+- **Floor-Restore.cmd** undoes the latest floor adjustment made by these tools.
+
+The floor **stays fixed after you apply it**. Crouching, jumping and normal movement continue to change your height above that floor. This is the requested distance from the headset's tracked origin, not a measurement of your body's height. The preset conversion is exact; the resulting calibration has floating-point and tracking measurement uncertainty.
+
+This uses Valve's chaperone API to change only the standing origin's vertical offset. Headset, controllers and trackers share the change, preserving their alignment. Standing-origin rotation, horizontal placement, seated origin, play-area size and collision geometry are not edited. SteamVR saves the calibration, but later room setup, recentering or other offset tools can replace it. Games using a seated/raw origin or their own height settings may ignore it. Avoid running room-setup/playspace-adjustment tools concurrently.
+
+Each change saves an origin backup and full calibration export in **FloorBackups** before committing. Restore changes only the standing origin and refuses a different headset/universe or a floor origin changed by another tool since application. The installer **Rollback.cmd** restores driver/settings; floor restoration is separate. Keep FloorBackups when moving to a newer package. No administrator rights are needed for the floor controls.
+
+For direct commands, run from this package directory:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Floor-Height.ps1 -Feet 6 -Inches 3
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Floor-Height.ps1 -Centimeters 180
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Floor-Height.ps1 -Meters 1.8
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Floor-Height.ps1 -Restore -BackupId YOUR-BACKUP-ID
+```
+
+Custom heights use a decimal point. Floor apply/restore was tested against a simulated runtime and real backup files, with only read-only measurement on your running SteamVR session. Live floor mutation remains unverified.
 
 ## What this can and cannot improve
 

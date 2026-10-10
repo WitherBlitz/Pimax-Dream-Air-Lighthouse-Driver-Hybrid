@@ -1,4 +1,4 @@
-# Validation — Dream Air LH1 0.1.0 experimental
+# Validation — Dream Air LH1 0.2.0 experimental
 
 Built locally on 2026-10-09 from sboys3 CustomHeadsetOpenVR 1.3.0, commit `21185da63a9e4307ae876b3702a43a43044d451c`, with its pinned submodules. The public source and build scripts are in `Source.zip`; exact binary hashes and dependency revisions are in `PROVENANCE.json` and `SHA256SUMS.txt`.
 
@@ -6,14 +6,19 @@ Built locally on 2026-10-09 from sboys3 CustomHeadsetOpenVR 1.3.0, commit `21185
 
 - Release x64 driver compiled with Visual Studio 2026 / MSVC v145. Builds use `SkipPostBuild=true`; the live SteamVR driver was not replaced. Existing upstream narrowing/conversion warnings remain.
 - **35/35 native tests passed**: source validity, finite values and quaternion normalization, jump rejection, prediction bounds, recovery, coordinate changes after loss/gaps, timestamp handling, adaptive filters, device selection, activation/deactivation, settings reload, forced-tracking precedence within the public module, and concurrent callbacks.
+- **50/50 floor tests passed**: exact nominal 1.905 m preset, custom units/argument validation, local-up matrix translation, finite rigid transforms, stable tracking capture, changed origins/identities, backup/commit failures, origin confirmation, identity-gated automatic rollback, restore restrictions, concurrent mutation exclusion, durable file round trips, pending-pointer preservation, Unicode paths and malformed backups. The first nonfunctional floor scaffold failed 25 of 27 behavior tests; argument scaffold failed seven additional cases. Six timing/transaction regressions failed before their corrections.
 - **6/6 installer cases passed** in both PowerShell 7 and Windows PowerShell 5.1: settings/distortion preservation, profiles, exact rollback of existing settings and both drivers, clean OpenPort installation/rollback, malformed JSON rejection, and path containment. Tests ran against isolated marked sandbox directories.
 - Independent code review identified recovery and headset-selection defects; regression tests reproduced them before correction. The helper's cross-module limitations were documented rather than assumed away.
 - Read-only OpenVR recording identified the Dream Air, both controllers, and two Lighthouse stations with A/B modes. A brief stationary HMD capture did not reproduce the reported intermittent failures. Recorder argument validation was checked.
+- The new floor readout successfully measured the tracked Dream Air in the running SteamVR session. Development did not commit or restore its floor. An independent reviewer found no remaining Critical, Important or actionable Minor issues after the transaction corrections.
+- Windows PowerShell 5.1 floor launcher was exercised with read-only measurement and an invalid height rejected before native launch. Packaged floor/pose tests and all six installer cases were repeated successfully on the updated package; source ZIP integrity and package checksums were verified.
 - The packaged GUI and Play private helper are unchanged official 1.3.0 release binaries. The package includes corresponding public source and original notices; private helper source is unavailable upstream.
 
 ## Still requiring headset testing
 
 The fork has **not been loaded into the live SteamVR session**. Startup, inherited headset features, game compatibility, tracking improvement, gray-screen frequency, and motion latency are unverified on hardware. Passing synthetic tests does not establish those outcomes.
+
+Floor apply/restore through the real OpenVR chaperone service is also **unverified**. It was exercised through a simulated runtime with real durable backup files. The new floor tools do not change the pose guard or headset rendering; the driver DLL remains the 0.1.0 build. Games that do not use SteamVR's standing origin may ignore its floor height.
 
 This build uses the existing Pimax/Valve Lighthouse decoder. It adds pose validation and recovery handling; it cannot recover missing laser sweeps or distinguish every plausible slow drift from real movement. Rejected data is invalid and may cause a gray screen. Optional filtering adds delay. Begin with the Guard profile.
 

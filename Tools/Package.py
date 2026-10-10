@@ -35,7 +35,7 @@ for item in (repo / 'Tools/Package').iterdir():
     if item.is_file(): shutil.copy2(item, destination / item.name)
 tools = destination / 'Tools'
 tools.mkdir()
-for name in ['TrackingRecorder.exe', 'PoseTests.exe', 'openvr_api.dll']:
+for name in ['TrackingRecorder.exe', 'PoseTests.exe', 'FloorHeight.exe', 'FloorTests.exe', 'openvr_api.dll']:
     shutil.copy2(repo / 'output/Tools' / name, tools / name)
 shutil.copy2(repo / 'LICENCE.md', destination / 'LICENCE.md')
 launches = {
@@ -43,6 +43,10 @@ launches = {
     'Install-OpenPort.cmd': ('Install.ps1', '-Backend OpenPort'),
     'Rollback.cmd': ('Rollback.ps1', ''),
     'Collect-Diagnostics.cmd': ('Collect-Diagnostics.ps1', ''),
+    'Floor-6ft3.cmd': ('Floor-Height.ps1', '-Preset6ft3'),
+    'Floor-Custom.cmd': ('Floor-Height.ps1', ''),
+    'Floor-Read.cmd': ('Floor-Height.ps1', '-Read'),
+    'Floor-Restore.cmd': ('Floor-Height.ps1', '-Restore'),
 }
 for profile in ['Guard', 'Jitter', 'Smooth', 'Baseline']:
     launches[f'Profile-{profile}.cmd'] = ('Set-Profile.ps1', f'-Profile {profile}')
@@ -67,7 +71,7 @@ def sha(path):
     with path.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
 provenance = {
-    'package': 'DreamAir-LH1-0.1.0-experimental',
+    'package': 'DreamAir-LH1-0.2.0-experimental',
     'upstreamTag': '1.3.0',
     'upstreamCommit': '21185da63a9e4307ae876b3702a43a43044d451c',
     'publicForkCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip(),
@@ -75,8 +79,10 @@ provenance = {
     'forkDriverSha256': sha(main / 'bin/win64/driver_CustomHeadsetOpenVR.dll'),
     'upstreamPrivateDllSha256': sha(private / 'bin/win64/driver_CustomHeadsetOpenVR_Private.dll'),
     'upstreamGuiSha256': sha(destination / 'CustomHeadsetGUI/custom-headset-gui.exe'),
+    'floorToolSha256': sha(destination / 'Tools/FloorHeight.exe'),
+    'floorPresetMeters': 1.905,
     'dependencies': subprocess.check_output(['git', 'submodule', 'status', '--recursive'], cwd=repo, text=True).strip().splitlines(),
-    'hardwareValidation': 'Pending. Build and synthetic tests passed; the fork has not been installed into the live VR session.'
+    'hardwareValidation': 'Pending. Builds and native/sandbox tests passed; driver loading and floor commit/restore have not been performed in the live VR session.'
 }
 (destination / 'PROVENANCE.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
 checksums = [f'{sha(p)}  {p.relative_to(destination).as_posix()}' for p in sorted(destination.rglob('*')) if p.is_file()]

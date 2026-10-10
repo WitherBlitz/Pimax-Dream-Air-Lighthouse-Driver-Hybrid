@@ -11,3 +11,13 @@ Execution: inline in a fresh clone; no live runtime/config writes. Approval prom
 - Final: Ruling: existing upstream detached-thread/empty-Cleanup behavior remains inherited — no new ownership or shutdown threads added; cost if wrong: upstream shutdown/reload defects may still occur.
 - Final: Ruling: hardware/game runtime validation remains pending — active VR was not interrupted to load the experimental build; cost if wrong: startup, feature compatibility, latency, and tracking quality may differ on actual hardware.
 - No deferred minor findings. Final build/test/package verification results are recorded in the delivered validation report.
+
+## Floor-height update
+
+- User requested 6 ft 3 in below the current headset and custom heights. Ruling: use a fixed standing-origin floor applied on demand — preserves crouching and common device alignment — cost if wrong: a user who wanted an automatically following floor would need a different feature.
+- Nonfunctional core scaffold: 25/27 behavior failures; corrected core: 27/27. Argument scaffold: 7/36 failures; parser: 36/36. Real file-store checks: 43/43.
+- Ruling: full chaperone export is retained for reference, but restore changes only the original standing matrix — prevents unrelated room data from being reverted — cost if wrong: restoring wider concurrent room changes requires SteamVR room setup instead.
+- Read-only native OpenVR floor measurement worked on the running Dream Air; no commit/restore was invoked during development. Forced tracking flags remain an explicit write blocker.
+- Fresh review identified independent process sequencing and automatic rollback identity races. Added capture/commit timing regressions too: six failures (44/50) before correction. Fixed named mutation locking, post-backup tracking/height checks, origin readback confirmation, and identity-gated rollback. Final native suite: 50/50 plus original pose 35/35.
+- Reviewer verified corrected files: no remaining Critical, Important or actionable Minor findings. Live chaperone apply/restore remains pending; release validation report records the boundary.
+- Updated package: 50/50 floor and 35/35 pose tests passed from packaged executables; 6/6 installer cases repeated in each PowerShell version. Windows PowerShell 5.1 floor launcher measured read-only and rejected invalid height before native launch. Staging source ZIP integrity, 212 file checksums, preset metadata and unchanged official binaries verified before final packaging.
