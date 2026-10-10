@@ -37,12 +37,13 @@ public:
     }
     void Process(uint32_t index,vr::DriverPose_t& pose,double arrival) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if(index==stats_.deviceIndex && settings_.enabled) {
+        const bool target=index==stats_.deviceIndex;
+        if(target) {
             stats_.samples++; stats_.sourceValid=pose.poseIsValid && pose.deviceIsConnected && pose.result==vr::TrackingResult_Running_OK;
             stats_.sourceResult=static_cast<int>(pose.result);
             stats_.lastArrival=arrival; stats_.lastDecision=filter_.Process(pose,arrival,settings_);
-            stats_.outputValid=pose.poseIsValid && pose.deviceIsConnected && pose.result==vr::TrackingResult_Running_OK;
             switch(stats_.lastDecision) {
+            case Decision::Disabled: if(!stats_.sourceValid) stats_.sourceInvalid++; break;
             case Decision::SourceInvalid: stats_.sourceInvalid++; break;
             case Decision::Malformed: stats_.malformed++; break;
             case Decision::JumpRejected: stats_.jumps++; break;
@@ -52,13 +53,17 @@ public:
             case Decision::Stale: stats_.stale++; break;
             default: break;
             }
-            return; // Supersedes this module's force flags; another module may also hook poses.
+            if(settings_.enabled) {
+                stats_.outputValid=pose.poseIsValid && pose.deviceIsConnected && pose.result==vr::TrackingResult_Running_OK;
+                return; // Supersedes this module's force flags; another module may also hook poses.
+            }
         }
         // Preserve upstream behavior for devices outside this guard, and when explicitly disabled.
         if(forceTracking_ || (forceHeadsetOnly_ && index==0)) {
             pose.poseIsValid=true;
             if(pose.result!=vr::TrackingResult_Fallback_RotationOnly) pose.result=vr::TrackingResult_Running_OK;
         }
+        if(target) stats_.outputValid=pose.poseIsValid && pose.deviceIsConnected && pose.result==vr::TrackingResult_Running_OK;
     }
     Statistics Snapshot() { std::lock_guard<std::mutex> lock(mutex_); return stats_; }
 private:

@@ -21,7 +21,7 @@ main = destination / 'CustomHeadsetOpenVR'
 shutil.copytree(upstream / 'CustomHeadsetOpenVR', main)
 shutil.copy2(repo / 'output/CustomHeadsetOpenVR/bin/win64/driver_CustomHeadsetOpenVR.dll', main / 'bin/win64/driver_CustomHeadsetOpenVR.dll')
 manifest = json.loads((main / 'driver.vrdrivermanifest').read_text(encoding='utf-8-sig'))
-manifest['version'] = '1.3.0-dreamair-lh1.1-experimental'
+manifest['version'] = '1.3.0-dreamair-lh1.2-experimental'
 (main / 'driver.vrdrivermanifest').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
 private = destination / 'CustomHeadsetOpenVR_Private'
 shutil.copytree(upstream / 'CustomHeadsetOpenVR', private)
@@ -72,7 +72,7 @@ def sha(path):
     with path.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
 provenance = {
-    'package': 'DreamAir-LH1-0.3.1-experimental',
+    'package': 'DreamAir-LH1-0.3.2-experimental',
     'upstreamTag': '1.3.0',
     'upstreamCommit': '21185da63a9e4307ae876b3702a43a43044d451c',
     'publicForkCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip(),
@@ -84,7 +84,7 @@ provenance = {
     'floorPresetMeters': 1.905,
     'launcherSha256': sha(destination / 'DreamAir-LH1.exe'),
     'dependencies': subprocess.check_output(['git', 'submodule', 'status', '--recursive'], cwd=repo, text=True).strip().splitlines(),
-    'hardwareValidation': 'Pending. Builds and native/sandbox tests passed; driver loading and floor commit/restore have not been performed in the live VR session.'
+    'hardwareValidation': 'Corrected 1.3.0-dreamair-lh1.2 DLL loading/tracking pending at packaging time. Previous 1.1 OpenPort DLL was measured live: Baseline 0/1914 invalid, Guard repeat 168/1272 invalid with unchanged source-invalid count. Native/sandbox tests passed; real floor commit/restore remains untested. See VALIDATION.md.'
 }
 (destination / 'PROVENANCE.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
 checksums = [f'{sha(p)}  {p.relative_to(destination).as_posix()}' for p in sorted(destination.rglob('*')) if p.is_file()]

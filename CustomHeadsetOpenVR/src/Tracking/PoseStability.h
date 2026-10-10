@@ -73,8 +73,10 @@ public:
         if(!std::isfinite(arrival) || !AllFinite(pose) || std::abs(pose.poseTimeOffset)>s.maxPoseTimeOffset) {
             BreakHistory(); return Reject(pose,Decision::Malformed);
         }
-        const double time=arrival+pose.poseTimeOffset;
-        if(!std::isfinite(time)) { BreakHistory(); return Reject(pose,Decision::Malformed); }
+        // OpenVR's relative pose offset can change between chronological
+        // callbacks. Use the monotonic callback clock for filter history and
+        // retain poseTimeOffset on the output for SteamVR's prediction.
+        const double time=arrival;
         // Preserve the source's loss/disconnection/rotation-only contract exactly.
         if(!pose.poseIsValid || !pose.deviceIsConnected || pose.result!=vr::TrackingResult_Running_OK) {
             BreakHistory(); lastSeen_=time; seen_=true; return Decision::SourceInvalid;

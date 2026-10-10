@@ -1,6 +1,8 @@
-# Dream Air LH1 0.3.1 — experimental
+# Dream Air LH1 0.3.2 — experimental
 
 This is a compiled fork of sboys3 CustomHeadsetOpenVR **1.3.0**, with an added Dream Air Lighthouse pose guard. It targets your Dream Air firmware **1.0.3**, two **Lighthouse 1.0** stations with a sync cable, and the existing **A/b** setup. Hardware support comes from Pimax/Valve's existing tracking stack; this project does not replace its optical decoder or change firmware.
+
+**0.3.2 tracking correction:** the previous guard could reject valid chronological callbacks when their relative prediction offsets changed or repeated, causing extra gray screens. Filter history now uses callback arrival time and keeps each accepted pose's current predictor fields. Baseline diagnostics also keep updating when the guard is disabled. The new native regressions pass; follow the validation report for the boundary between measured old-driver behavior and testing the corrected driver. [OpenVR describes the prediction offset here](https://github.com/ValveSoftware/openvr/blob/master/docs/Driver_API_Documentation.md#poses).
 
 **0.3.1 installer fix:** 0.3.0 could fail while backing up resources when extracted under a long folder path. Directory backup, staging and restore now use Windows' long-path copy support, and temporary JSON metadata uses extended-length file paths. A backup copy failure still stops installation before replacing the existing driver. If you encountered that error, extract this release and retry **Install driver** with SteamVR/headset settings closed.
 
@@ -12,14 +14,14 @@ The window offers installation/backend selection, headset settings, tracking pro
 
 Use **Pimax Play → Install driver** unless you explicitly use EVO OpenPort. Close SteamVR and headset settings before driver install/restore. Keep SteamVR running for floor controls, hold the headset still through the five-second delay, and leave forced tracking disabled. Close headset settings before applying a tracking profile. The existing CMD/PowerShell controls below remain available.
 
-If upgrading from an older extracted release, keep its **Backups** and **FloorBackups** folders or copy them into the new release before using restore. The launcher opens the original headset GUI for IPD/visual settings; its own controls add the tracking and floor tools. Live driver loading and floor calibration remain unverified.
+If upgrading from an older extracted release, keep its **Backups** and **FloorBackups** folders or copy them into the new release before using restore. The launcher opens the original headset GUI for IPD/visual settings; its own controls add the tracking and floor tools. The corrected DLL still requires hardware validation at packaging time; real floor apply/restore remains unverified.
 
 ## Install
 
 1. Close SteamVR and the CustomHeadset GUI. Keep the station sync cable connected, with modes A/b.
 2. Right-click **Install-Play.cmd → Run as administrator** if you use Pimax Play or are unsure. This installs the fork and an unmodified sboys3 private-only helper using the upstream documented arrangement. If you explicitly run **Pimax EVO OpenPort**, use **Install-OpenPort.cmd** instead and leave OpenPort enabled in EVO.
 3. Start Pimax and SteamVR normally. The original GUI is included in `CustomHeadsetGUI`; your IPD, visual settings, and custom distortion profiles stay in place. Close the GUI before using the profile scripts to avoid competing settings writes.
-4. Run **Collect-Diagnostics.cmd**. In `%APPDATA%\CustomHeadset\dreamair-tracking.json`, `build` must be `1.3.0-dreamair-lh1.1-experimental`, `deviceIndex` must be your HMD index (normally 0), and `samples` must increase. If the file is absent or `deviceIndex` is 4294967295, the fork is not processing the headset; do not assume it is active.
+4. Run **Collect-Diagnostics.cmd** with SteamVR running. In `%APPDATA%\CustomHeadset\dreamair-tracking.json`, `build` must be `1.3.0-dreamair-lh1.2-experimental`, `deviceIndex` must be your HMD index (normally 0), and `samples` must increase even in Baseline. If the file is absent or `deviceIndex` is 4294967295, the fork is not processing the headset; do not assume it is active. With SteamVR closed, the recorder cannot capture live poses; the script still saves available logs before reporting that capture was unavailable.
 
 The installer refuses to replace a running driver. It does not close games, change firmware, modify Lighthouse calibration databases, or restart services. Backups are kept in this folder's `Backups` directory. Keep this whole folder until you no longer need rollback.
 
@@ -62,7 +64,7 @@ Custom heights use a decimal point. Floor apply/restore was tested against a sim
 
 It can reject NaN/Inf, unusable rotations, excessive predictor velocities, and abrupt implausible position/rotation jumps, and avoid filtering across loss or coordinate changes. Optional smoothing can reduce small jitter. Rejected data stays **invalid**, so SteamVR may show a gray screen instead of moving the view to a corrupt position. This is deliberate; the build does not claim that freezing or guessing is recovered optical tracking.
 
-It cannot restore missing laser sweeps, fix damaged sensors, or prove whether a plausible slow drift is real motion. Three consistent samples in a new location can represent either a genuine coordinate correction or consistently wrong upstream tracking. Gray-screen frequency, tracking quality, latency, and all headset features still require testing on your headset. This build was compiled and tested with synthetic poses and read-only OpenVR recording; it has not yet been loaded into your active SteamVR session.
+It cannot restore missing laser sweeps, fix damaged sensors, or prove whether a plausible slow drift is real motion. Three consistent samples in a new location can represent either a genuine coordinate correction or consistently wrong upstream tracking. The previous 0.3.1 DLL was measured on your headset: Baseline had 0/1914 invalid samples, while a Guard repeat had 168/1272 despite no increase in the source-invalid count. This release corrects the timestamp bug behind those added rejections. Gray-screen frequency, tracking quality, latency and all headset features with the corrected DLL still require testing.
 
 Your logs include `Base 3858A002 axis 0 appears to have failed`, HMD out-of-bounds resets, bootstrap failures, and optical-sample loss. The warning is not proof of broken hardware, but repeated restarts working intermittently do not exclude optical/sync/firmware/hardware causes. The sync modes were independently confirmed as A/B through OpenVR. Avoid speculative firmware downgrades or optical calibration rewrites.
 
