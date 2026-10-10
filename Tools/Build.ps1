@@ -22,6 +22,9 @@ try {
     $runtimeCompile='"'+$vcvars+'" && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers /I ThirdParty\pvr /I ThirdParty\json\include tests\runtime_pose_tests.cpp /Fe:output\Tools\RuntimePoseTests.exe /Fo:output\Tools\RuntimePoseTests.obj && output\Tools\RuntimePoseTests.exe && cl /nologo /EHsc /std:c++17 /W4 /MT tests\runtime_headset_tests.cpp /Fe:output\Tools\RuntimeHeadsetTests.exe /Fo:output\Tools\RuntimeHeadsetTests.obj && output\Tools\RuntimeHeadsetTests.exe'
     & cmd.exe /d /c $runtimeCompile
     if ($LASTEXITCODE) { throw "Native runtime tests failed: $LASTEXITCODE" }
+    $alignmentCompile='"'+$vcvars+'" && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers tests\lighthouse_alignment_tests.cpp /Fe:output\Tools\LighthouseAlignmentTests.exe /Fo:output\Tools\LighthouseAlignmentTests.obj && output\Tools\LighthouseAlignmentTests.exe'
+    & cmd.exe /d /c $alignmentCompile
+    if ($LASTEXITCODE) { throw "Lighthouse alignment tests failed: $LASTEXITCODE" }
     $floorCompile='"'+$vcvars+'" && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers /I ThirdParty\json\include tests\floor_height_tests.cpp /Fe:output\Tools\FloorTests.exe /Fo:output\Tools\FloorTests.obj && output\Tools\FloorTests.exe && cl /nologo /EHsc /std:c++17 /W4 /wd4100 /MT /I ThirdParty\openvr\headers /I ThirdParty\json\include Tools\FloorHeight.cpp ThirdParty\openvr\lib\win64\openvr_api.lib /Fe:output\Tools\FloorHeight.exe /Fo:output\Tools\FloorHeight.obj'
     & cmd.exe /d /c $floorCompile
     if ($LASTEXITCODE) { throw "Floor tests or tool build failed: $LASTEXITCODE" }

@@ -21,7 +21,7 @@ main = destination / 'CustomHeadsetOpenVR'
 shutil.copytree(upstream / 'CustomHeadsetOpenVR', main)
 shutil.copy2(repo / 'output/CustomHeadsetOpenVR/bin/win64/driver_CustomHeadsetOpenVR.dll', main / 'bin/win64/driver_CustomHeadsetOpenVR.dll')
 manifest = json.loads((main / 'driver.vrdrivermanifest').read_text(encoding='utf-8-sig'))
-manifest['version'] = '1.3.0-dreamair-lh1.5-experimental'
+manifest['version'] = '1.3.0-dreamair-lh1.6-experimental'
 (main / 'driver.vrdrivermanifest').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
 private = destination / 'CustomHeadsetOpenVR_Private'
 shutil.copytree(upstream / 'CustomHeadsetOpenVR', private)
@@ -35,7 +35,7 @@ for item in (repo / 'Tools/Package').iterdir():
     if item.is_file(): shutil.copy2(item, destination / item.name)
 tools = destination / 'Tools'
 tools.mkdir()
-for name in ['TrackingRecorder.exe', 'PoseTests.exe', 'NativePoseTests.exe', 'RuntimePoseTests.exe', 'RuntimeHeadsetTests.exe', 'FloorHeight.exe', 'FloorTests.exe', 'LauncherTests.exe', 'openvr_api.dll']:
+for name in ['TrackingRecorder.exe', 'PoseTests.exe', 'NativePoseTests.exe', 'RuntimePoseTests.exe', 'RuntimeHeadsetTests.exe', 'LighthouseAlignmentTests.exe', 'FloorHeight.exe', 'FloorTests.exe', 'LauncherTests.exe', 'openvr_api.dll']:
     shutil.copy2(repo / 'output/Tools' / name, tools / name)
 shutil.copy2(repo / 'output/Tools/DreamAir-LH1.exe', destination / 'DreamAir-LH1.exe')
 shutil.copy2(repo / 'LICENCE.md', destination / 'LICENCE.md')
@@ -72,7 +72,7 @@ def sha(path):
     with path.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
 provenance = {
-    'package': 'DreamAir-LH1-0.3.5-experimental',
+    'package': 'DreamAir-LH1-0.3.6-experimental',
     'upstreamTag': '1.3.0',
     'upstreamCommit': '21185da63a9e4307ae876b3702a43a43044d451c',
     'publicForkCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip(),
@@ -84,7 +84,7 @@ provenance = {
     'floorPresetMeters': 1.905,
     'launcherSha256': sha(destination / 'DreamAir-LH1.exe'),
     'dependencies': subprocess.check_output(['git', 'submodule', 'status', '--recursive'], cwd=repo, text=True).strip().splitlines(),
-    'hardwareValidation': 'Native Dream Air Pimax poses with exact saved custom optics loaded on the user headset, universe 31. User confirmed old optics and stable tracking, then reported poor turn prediction. Moving capture identified angular velocity frame mismatch; .5 corrects inverse room yaw and body-space angular prediction, retaining world linear velocity. The .5 live stationary check had no tracking loss or dropped frames. Moving visual improvement and extended game/reconnect behavior require confirmation. See VALIDATION.md.'
+    'hardwareValidation': 'User confirmed .5 optics, tracking and moving-head behavior work perfectly; that release/source/settings were saved separately. Read-only capture found Lighthouse controller/station universe differs from Pimax FloorLevel. Primary-station rigid mapping reduces controller position disagreement from about 2 metres to 7-11 mm. The .6 update applies that mapping to Lighthouse world transforms and preserves the .5 HMD route. Visual alignment and extended game/reconnect behavior require live confirmation. Secondary station calibration differs between runtimes; see VALIDATION.md.'
 }
 (destination / 'PROVENANCE.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
 checksums = [f'{sha(p)}  {p.relative_to(destination).as_posix()}' for p in sorted(destination.rglob('*')) if p.is_file()]

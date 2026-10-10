@@ -17,6 +17,8 @@
 #include "../Tracking/PimaxRuntimePose.h"
 #include "../Tracking/PimaxRuntimeRoom.h"
 #include "../Tracking/TrackingManager.h"
+#include "../Tracking/NativeLighthouseAlignment.h"
+#include "../Driver/Hooking/InterfaceHookInjector.h"
 
 // Matches driver_aapvr.
 static constexpr uint64_t k_UniverseId = 30;
@@ -27,6 +29,24 @@ static std::optional<double> ReadNativeVelocityYaw(uint64_t universe){
 	std::ifstream room(std::filesystem::path(root)/L"Pimax"/L"runtime"/L"chaperone_info.vrchap");
 	if(!room)return {};
 	return dreamair::ReadPimaxVelocityYaw(room,universe);
+}
+
+// Caller holds pvrLock. These fixed station poses use the same FloorLevel
+// session as the HMD; no recenter or room-settings write is performed.
+static std::map<std::string,dreamair::AlignmentPose> ReadNativeStationTargets(pvrSessionHandle session){
+	std::map<std::string,dreamair::AlignmentPose> targets;
+	const auto count=(std::min)(pvr_getTrackerCount(session),13u);
+	for(unsigned i=0;i<count;i++){
+		const auto device=static_cast<pvrTrackedDeviceType>(static_cast<unsigned>(pvrTrackedDevice_Tracker0)<<i);
+		char serial[512]{};
+		pvr_getTrackedDeviceStringProperty(session,device,pvrTrackedDeviceProp_Serial_String,serial,sizeof(serial));
+		pvrPoseStatef state{};
+		if(serial[0]&&pvr_getTrackedDevicePoseState(session,device,PimaxCommon::GetPvrTime(),&state)==pvr_success&&(state.StatusFlags&3)==3){
+			const auto& q=state.ThePose.Orientation;const auto& p=state.ThePose.Position;
+			targets[serial]={{q.w,q.x,q.y,q.z},{p.x,p.y,p.z}};
+		}
+	}
+	return targets;
 }
 
 static inline vr::HmdMatrix34_t StoreHmdMatrix34(const PVR::Matrix4f& matrix) {
@@ -1059,6 +1079,7 @@ void PimaxSlamDriver::StartPvrTracking() {
 			currentUniverse=pvr_getTrackedDeviceIntProperty(GetPvrSession(),pvrTrackedDevice_HMD,pvrTrackedDeviceProp_UniverseId_int,-1);
 		}
 		if(currentUniverse<=0 || static_cast<uint64_t>(currentUniverse)!=nativeUniverseId){
+			dreamair::nativeLighthouseAlignment.Reset();
 			if(!nativeUniverseMismatchReported){
 				DriverLog("DreamAir native Pimax tracking: universe changed/unavailable; restart SteamVR before resuming");
 				auto pose=nativeMapper.Map({},pvr_invalid_param,false,0);
@@ -1072,6 +1093,14 @@ void PimaxSlamDriver::StartPvrTracking() {
 		auto yaw=ReadNativeVelocityYaw(nativeUniverseId);
 		if(!yaw)return;
 		nativeVelocityYaw=*yaw;
+		std::map<std::string,dreamair::AlignmentPose> targets;
+		{
+			shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
+			targets=ReadNativeStationTargets(GetPvrSession());
+		}
+		dreamair::nativeLighthouseAlignment.Configure(targets);
+		RefreshNativeLighthouseReferences();
+		DriverLog("DreamAir Lighthouse alignment: loaded %u Pimax station references",static_cast<unsigned>(targets.size()));
 	}
 	shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
 	if (GetPvrSession() && !pvrTrackingRunning.exchange(true) ) {
@@ -1092,6 +1121,7 @@ void PimaxSlamDriver::StopPvrTracking() {
 			vr::VRServerDriverHost()->TrackedDevicePoseUpdated(deviceIndex,pose,sizeof(pose));
 		}
 	}
+	if(nativeLighthouseMode)dreamair::nativeLighthouseAlignment.Reset();
 }
 
 void PimaxSlamDriver::PvrTrackingThread() {
@@ -1105,6 +1135,8 @@ void PimaxSlamDriver::PvrTrackingThread() {
 	
 	bool hasRecentered = false;
 	double trackingSinceTime = 0;
+	double alignmentRetryTime = 0;
+	double alignmentValidateTime = 0;
 
 	while (true) {
 		WaitForSingleObject(timer, 100);
@@ -1116,6 +1148,7 @@ void PimaxSlamDriver::PvrTrackingThread() {
 		pvrTrackingState trackingState = {};
 		pvrResult nativeResult=pvr_invalid_param;
 		bool nativeConnected=false;
+		std::map<std::string,dreamair::AlignmentPose> retryTargets;
 		{
 			shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
 			auto session=GetPvrSession();pvrNow=GetPvrTime();
@@ -1124,13 +1157,24 @@ void PimaxSlamDriver::PvrTrackingThread() {
 				if(nativeLighthouseMode){
 					pvrHmdStatus status{};
 					nativeConnected=pvr_getHmdStatus(session,&status)==pvr_success && status.ServiceReady && status.HmdPresent && !status.ShouldQuit;
+					if(nativeConnected && pvrNow-alignmentRetryTime>1 && !dreamair::nativeLighthouseAlignment.Snapshot().ready){
+						retryTargets=ReadNativeStationTargets(session);alignmentRetryTime=pvrNow;
+					}
 				}
 			}
 			submissionTime=GetPvrTime();
 		}
 		if(nativeLighthouseMode){
+			// Publish the HMD before reference validation/replay, so waiting on
+			// foreign-device host calls cannot add unaccounted prediction time.
 			auto pose=nativeMapper.Map(trackingState.HeadPose,nativeResult,nativeConnected,submissionTime,nativeVelocityYaw);
 			vr::VRServerDriverHost()->TrackedDevicePoseUpdated(deviceIndex,pose,sizeof(pose));
+			if(pvrNow-alignmentValidateTime>1){RefreshNativeLighthouseReferences(false);alignmentValidateTime=pvrNow;}
+			if(!nativeConnected)dreamair::nativeLighthouseAlignment.Reset();
+			else if(!retryTargets.empty()){
+				dreamair::nativeLighthouseAlignment.Configure(retryTargets);
+				RefreshNativeLighthouseReferences();
+			}
 			continue; // Lighthouse controllers retain their existing driver and poses.
 		}
 		

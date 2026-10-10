@@ -1,4 +1,4 @@
-# Dream Air LH1 0.3.5 — experimental
+# Dream Air LH1 0.3.6 — experimental
 
 This fork retains the public sboys3 CustomHeadsetOpenVR 1.3.0 rendering and headset features and adds an optional **Pimax HMD pose source**. It targets the Dream Air, firmware 1.0.3, with your Lighthouse 1.0 A/b sync-cable setup. Controllers keep their existing SteamVR tracking. The new mode is an experiment based on measured software behavior; complete feature parity and game stability have not been established.
 
@@ -11,6 +11,8 @@ The launcher starts with **EVO OpenPort** and **Pimax** selected for your curren
 Pimax mode creates its own FloorLevel tracking session and uses Pimax's reported room universe, without recentering. It suppresses the duplicate Lighthouse Dream Air HMD while retaining Lighthouse controllers. Existing Dream Air distortion, IPD, eye rotation and other optical settings are preserved. This does not replace the optical decoder or modify firmware/calibration files.
 
 This profile does not use the earlier timed-alignment bridge or require valid Lighthouse HMD callbacks. Reconnecting reapplies FloorLevel to the driver session. It reads the active Pimax room's standing yaw to map rotational velocity into the correct prediction frame. Linear velocity already uses FloorLevel coordinates. Check controller alignment and head movement after startup.
+
+The .6 build also aligns Lighthouse controllers, trackers and station models to the native headset's existing FloorLevel space. It matches the primary station by serial number between runtimes, composes a rigid world transform, and preserves controller pose/prediction/input fields. It never recenters the headset or rewrites room calibration. Static station callbacks are replayed through their owning Lighthouse host after alignment. A station calibration mismatch between runtimes can leave a secondary station model offset; controller alignment uses the primary station rather than averaging inconsistent anchors.
 
 Installation enables SteamVR's `activateMultipleDrivers` for the Pimax profile so Lighthouse remains loaded alongside the custom headset. Live testing confirmed valid native head poses after enabling this setting; the user confirmed the old optics were restored and tracking remained good.
 

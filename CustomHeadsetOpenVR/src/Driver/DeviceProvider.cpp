@@ -24,6 +24,7 @@
 #include "../Config/ConfigLoader.h"
 #include "../Tracking/TrackingManager.h"
 #include "../Tracking/RuntimeHeadsetSelection.h"
+#include "../Tracking/NativeLighthouseAlignment.h"
 
 bool lockedOut = false;
 
@@ -319,6 +320,21 @@ bool CustomHeadsetDeviceProvider::SendVendorEvent(uint32_t unWhichDevice, vr::EV
 }
 
 bool CustomHeadsetDeviceProvider::HandleDevicePoseUpdated(uint32_t openVRID, vr::DriverPose_t &pose){
+	// Observe genuine Lighthouse validity before forceTracking can alter it.
+	// The native HMD is device zero; its working pose/prediction is unchanged.
+	if(driverConfig.dreamAir.useNativePimaxTracking && openVRID!=0){
+		const auto container=vr::VRProperties()->TrackedDeviceToPropertyContainer(openVRID);
+		if(vr::VRProperties()->GetStringProperty(container,vr::Prop_TrackingSystemName_String)=="lighthouse"){
+			const auto serial=vr::VRProperties()->GetStringProperty(container,vr::Prop_SerialNumber_String);
+			const auto cls=static_cast<vr::ETrackedDeviceClass>(vr::VRProperties()->GetInt32Property(container,vr::Prop_DeviceClass_Int32));
+			const auto universe=vr::VRProperties()->GetUint64Property(container,vr::Prop_CurrentUniverseId_Uint64);
+			if(dreamair::nativeLighthouseAlignment.Process(serial,cls,universe,pose)){
+				const auto state=dreamair::nativeLighthouseAlignment.Snapshot();
+				DriverLog("DreamAir Lighthouse alignment: primary %s, source universe %llu, translation %.6f %.6f %.6f",state.serial.c_str(),state.universe,state.transform.position[0],state.transform.position[1],state.transform.position[2]);
+				RefreshNativeLighthouseReferences();
+			}
+		}
+	}
 	const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	dreamair::trackingManager.Process(openVRID, pose, now);
 	return true;

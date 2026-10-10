@@ -3,4 +3,4 @@ Config driverConfig = {};
 Config driverConfigOld = {};
 Config defaultDriverConfig = {};
 std::mutex driverConfigLock;
-std::string driverVersion = "1.3.0-dreamair-lh1.5-experimental";
+std::string driverVersion = "1.3.0-dreamair-lh1.6-experimental";

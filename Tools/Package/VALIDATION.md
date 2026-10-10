@@ -1,4 +1,4 @@
-# Validation — Dream Air LH1 0.3.5 experimental
+# Validation — Dream Air LH1 0.3.6 experimental
 
 Built on 2026-10-10 from sboys3 public 1.3.0, upstream commit `21185da63a9e4307ae876b3702a43a43044d451c`, with pinned submodules. Exact source revision and binary hashes are in PROVENANCE.json/SHA256SUMS.txt; Source.zip includes corresponding public source.
 
@@ -16,6 +16,10 @@ The installed Valve receiver console identified both A/B stations, received hits
 
 ## Completed software checks
 
+- The user confirmed .5 motion works perfectly and requested preservation. The complete .5 release, corresponding source, full Git history bundle, installed DLL and live settings were copied to a separate timestamped snapshot before alignment changes.
+- Read-only .5 captures identified PVR FloorLevel universe 31 and Lighthouse universe 1784100291 with identical station/controller serials. The controllers differed by approximately two metres. Matching the primary station's full pose gave a rigid mapping with controller residuals 7.4/10.7 mm and orientation residuals under one degree. Using the secondary instead left approximately 194 mm controller errors. The .6 change therefore maps only Lighthouse world transforms from the serial-matched primary; native HMD optics, tracking and prediction stay unchanged.
+- A single rigid transform cannot reconcile the differently saved secondary-station calibration: its model remains approximately 214 mm and 5.43 degrees from the PVR-reported pose. No station calibration is rewritten or averaged. Primary/source validity, early callbacks, full model/world offsets, frame and universe changes, loss/reset, malformed data, ambiguous references and HMD isolation have regression coverage. Visual alignment remains a live validation item until confirmed by the user.
+
 - The user confirmed the saved optics were restored, then reported disconnected/delayed head turns. A 20-second moving capture had 1,285 valid PVR/OpenVR samples, zero missed/dropped compositor frames and maximum compositor GPU time 1.8 ms. Rotational velocity did not follow FloorLevel orientation: inverse room-yaw mapping reduced derivative error from roughly 1.85 to 0.033 rad/s. Measured SteamVR prediction applies the submitted angular vector in body space, requiring an additional inverse pose rotation. Linear velocity was already in FloorLevel world space and is preserved. New regressions reproduced both missing mappings; corresponding correction is in .5. Live confirmation of the prediction correction is recorded separately.
 
 - Live .4 testing loaded the exact saved distortion profile and System32 PVR client. With SteamVR's default single-driver setting, Lighthouse did not load and native head poses were invalid. Enabling `activateMultipleDrivers` loaded Lighthouse and restored genuine native pose validity, while suppressing the duplicate Dream Air HMD. A sandbox regression reproduced the missing setting before the installer correction. The user then confirmed: old optics restored, tracking still good. Extended game and reconnect behavior remain unverified.
@@ -31,10 +35,10 @@ The installed Valve receiver console identified both A/B stations, received hits
 
 ## Validation boundaries
 
-The .5 build is installed and loaded with the exact saved profile. A stationary follow-up had 1,282 valid PVR/OpenVR samples and zero missed/dropped frames; it does not establish moving-head comfort. A separate local report records the user's moving test and subsequent capture. Unit/sandbox checks do not establish Gorilla Tag stability, controller alignment, complete feature parity or proprietary PVR behavior. Earlier bridge test results below remain historical coverage, not validation of the .5 live path.
+The user confirmed .5 moving-head behavior after its prediction correction. The .6 alignment update is validated separately against live runtime coordinates and user feedback. Unit/sandbox checks do not establish Gorilla Tag stability, complete feature parity or proprietary PVR behavior. Earlier bridge results remain historical coverage rather than validation of the current path.
 
 The earlier .2 driver was installed and tested; its original Lighthouse path still showed invalid/frozen callbacks in the resumed session. The .2 guard correction remains included: chronological history uses callback arrival, while valid predictor fields retain their relative offsets. Baseline statistics continue updating.
 
 Floor apply/restore is unchanged and remains unverified against the real chaperone service. Its **50/50** tests use simulated runtime behavior and real durable backup files; read-only height measurement worked. Floor writes refuse both force flags. Profiles now preserve those flags as requested, so forced-valid runtime output must not be presented as genuine source health.
 
-Inherited upstream shutdown/API/hook cleanup behavior and private-helper internals remain outside this change. The optional mode changes only the Dream Air HMD pose route. Keep the installer backup for rollback.
+Inherited upstream shutdown/API/hook cleanup behavior and private-helper internals remain outside this change. The optional native mode changes the Dream Air HMD pose route and maps Lighthouse device world transforms into its coordinate space. Keep the installer backup for rollback.

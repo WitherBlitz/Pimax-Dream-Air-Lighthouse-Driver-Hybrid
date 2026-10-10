@@ -4,6 +4,8 @@
 #include "../DeviceProvider.h"
 #include "../../Tracking/NativePoseBridge.h"
 #include "../../Tracking/TrackingManager.h"
+#include "../../Tracking/NativeLighthouseAlignment.h"
+#include "../../Config/Config.h"
 #include <chrono>
 #include <mutex>
 
@@ -15,12 +17,66 @@ using PoseCallback=void(*)(vr::IVRServerDriverHost*,uint32_t,const vr::DriverPos
 static PoseCallback owningPoseCallback=nullptr;
 static vr::IVRServerDriverHost* owningPoseHost=nullptr;
 static uint32_t owningPoseIndex=vr::k_unTrackedDeviceIndexInvalid;
+struct ReferenceCallback {vr::IVRServerDriverHost* host;PoseCallback callback;std::string serial;uint64_t universe;vr::DriverPose_t pose;};
+static std::map<uint32_t,ReferenceCallback> referenceCallbacks;
 static double PoseClock(){return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();}
 static bool ObserveLighthousePose(vr::IVRServerDriverHost* host,uint32_t index,const vr::DriverPose_t& pose,PoseCallback callback,double arrival){
 	if(host==vr::VRServerDriverHost())return true;
+	if(driverConfig.dreamAir.useNativePimaxTracking){
+		const auto container=vr::VRProperties()->TrackedDeviceToPropertyContainer(index);
+		const auto previous=referenceCallbacks.find(index);
+		if(previous!=referenceCallbacks.end() &&
+			(vr::VRProperties()->GetStringProperty(container,vr::Prop_SerialNumber_String)!=previous->second.serial
+			||vr::VRProperties()->GetUint64Property(container,vr::Prop_CurrentUniverseId_Uint64)!=previous->second.universe
+			||vr::VRProperties()->GetInt32Property(container,vr::Prop_DeviceClass_Int32)!=vr::TrackedDeviceClass_TrackingReference
+			||vr::VRProperties()->GetStringProperty(container,vr::Prop_TrackingSystemName_String)!="lighthouse")){
+			dreamair::nativeLighthouseAlignment.Forget(previous->second.serial);referenceCallbacks.erase(previous);
+		}
+		if(vr::VRProperties()->GetInt32Property(container,vr::Prop_DeviceClass_Int32)==vr::TrackedDeviceClass_TrackingReference
+			&&vr::VRProperties()->GetStringProperty(container,vr::Prop_TrackingSystemName_String)=="lighthouse"){
+			if(pose.deviceIsConnected&&pose.poseIsValid&&pose.result==vr::TrackingResult_Running_OK){
+				referenceCallbacks[index]={host,callback,vr::VRProperties()->GetStringProperty(container,vr::Prop_SerialNumber_String),vr::VRProperties()->GetUint64Property(container,vr::Prop_CurrentUniverseId_Uint64),pose};
+			}else{
+				dreamair::nativeLighthouseAlignment.Forget(vr::VRProperties()->GetStringProperty(container,vr::Prop_SerialNumber_String));
+				referenceCallbacks.erase(index);
+			}
+		}
+	}
 	const auto target=dreamair::nativePoseBridge.Snapshot().deviceIndex;
 	if(index==target && index!=vr::k_unTrackedDeviceIndexInvalid){owningPoseHost=host;owningPoseCallback=callback;owningPoseIndex=index;}
 	return dreamair::nativePoseBridge.Observe(index,pose,arrival);
+}
+
+void RefreshNativeLighthouseReferences(bool replay){
+	std::lock_guard<std::recursive_mutex> submissionLock(poseSubmissionMutex);
+	if(!driverConfig.dreamAir.useNativePimaxTracking)return;
+	// Remove stale lifecycle identities even while alignment is ready, or an
+	// obsolete zero-origin reference can prevent choosing the next primary.
+	for(auto it=referenceCallbacks.begin();it!=referenceCallbacks.end();){
+		const auto container=vr::VRProperties()->TrackedDeviceToPropertyContainer(it->first);const auto& cached=it->second;
+		if(vr::VRProperties()->GetStringProperty(container,vr::Prop_SerialNumber_String)!=cached.serial
+			||vr::VRProperties()->GetStringProperty(container,vr::Prop_TrackingSystemName_String)!="lighthouse"
+			||vr::VRProperties()->GetInt32Property(container,vr::Prop_DeviceClass_Int32)!=vr::TrackedDeviceClass_TrackingReference
+			||vr::VRProperties()->GetUint64Property(container,vr::Prop_CurrentUniverseId_Uint64)!=cached.universe){
+			dreamair::nativeLighthouseAlignment.Forget(cached.serial);it=referenceCallbacks.erase(it);
+		}else ++it;
+	}
+	if(!replay||!dreamair::nativeLighthouseAlignment.Snapshot().ready)return;
+	// Original callbacks preserve owning-host identity. Static references may
+	// never emit again after startup; republish their genuine cached source.
+	for(const auto& entry:referenceCallbacks){
+		const auto& cached=entry.second;const auto container=vr::VRProperties()->TrackedDeviceToPropertyContainer(entry.first);
+		if(vr::VRProperties()->GetStringProperty(container,vr::Prop_SerialNumber_String)!=cached.serial
+			||vr::VRProperties()->GetStringProperty(container,vr::Prop_TrackingSystemName_String)!="lighthouse"
+			||vr::VRProperties()->GetInt32Property(container,vr::Prop_DeviceClass_Int32)!=vr::TrackedDeviceClass_TrackingReference
+			||vr::VRProperties()->GetUint64Property(container,vr::Prop_CurrentUniverseId_Uint64)!=cached.universe)continue;
+		auto pose=cached.pose;
+		dreamair::nativeLighthouseAlignment.Process(cached.serial,vr::TrackedDeviceClass_TrackingReference,cached.universe,pose);
+		// Stations are fixed references, so the original geometry remains valid
+		// at replay time. Do not predict a reference from an old timestamp.
+		pose.poseTimeOffset=0;
+		cached.callback(cached.host,entry.first,pose,sizeof(pose));
+	}
 }
 
 bool PublishPimaxPose(uint32_t index,const vr::DriverPose_t& nativePose,double queryArrival){
