@@ -33,6 +33,7 @@ manifest['name'] = 'CustomHeadsetOpenVR_Private'
 shutil.copytree(upstream / 'CustomHeadsetGUI', destination / 'CustomHeadsetGUI')
 for item in (repo / 'Tools/Package').iterdir():
     if item.is_file(): shutil.copy2(item, destination / item.name)
+    elif item.is_dir(): shutil.copytree(item, destination / item.name)
 tools = destination / 'Tools'
 tools.mkdir()
 for name in ['TrackingRecorder.exe', 'PoseTests.exe', 'NativePoseTests.exe', 'RuntimePoseTests.exe', 'RuntimeHeadsetTests.exe', 'LighthouseAlignmentTests.exe', 'FloorHeight.exe', 'FloorTests.exe', 'LauncherTests.exe', 'openvr_api.dll']:
@@ -72,7 +73,8 @@ def sha(path):
     with path.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
 provenance = {
-    'package': 'DreamAir-LH1-0.3.6-experimental',
+    'package': 'DreamAir-LH1-0.3.7-experimental',
+    'nativeDriverVersion': '1.3.0-dreamair-lh1.6-experimental',
     'upstreamTag': '1.3.0',
     'upstreamCommit': '21185da63a9e4307ae876b3702a43a43044d451c',
     'publicForkCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip(),
@@ -83,8 +85,10 @@ provenance = {
     'floorToolSha256': sha(destination / 'Tools/FloorHeight.exe'),
     'floorPresetMeters': 1.905,
     'launcherSha256': sha(destination / 'DreamAir-LH1.exe'),
+    'defaultDistortionProfile': 'Dream Air Maximum Comfort 100pct Overlap',
+    'defaultDistortionSha256': sha(destination / 'Distortion/Dream Air Maximum Comfort 100pct Overlap.json'),
     'dependencies': subprocess.check_output(['git', 'submodule', 'status', '--recursive'], cwd=repo, text=True).strip().splitlines(),
-    'hardwareValidation': 'User confirmed .5 optics, tracking and moving-head behavior work perfectly; that release/source/settings were saved separately. Read-only capture found Lighthouse controller/station universe differs from Pimax FloorLevel. Primary-station rigid mapping reduces controller position disagreement from about 2 metres to 7-11 mm. The .6 update applies that mapping to Lighthouse world transforms and preserves the .5 HMD route. Visual alignment and extended game/reconnect behavior require live confirmation. Secondary station calibration differs between runtimes; see VALIDATION.md.'
+    'hardwareValidation': 'User confirmed .6 native headset motion and Lighthouse controller tracking work. Launcher-only release .7 preserves the exact .6 compiled driver, internal version, tracking, rendering and prediction code. The distortion selector and custom-default installation were validated in isolated sandboxes and UI smoke tests; no live optical changes were made for .7. Extended game/reconnect behavior and secondary station calibration differences remain documented in VALIDATION.md.'
 }
 (destination / 'PROVENANCE.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
 checksums = [f'{sha(p)}  {p.relative_to(destination).as_posix()}' for p in sorted(destination.rglob('*')) if p.is_file()]

@@ -29,7 +29,8 @@ foreach ($backend in @('Play','OpenPort')) {
     $padding='release & [fixture] '+('x'*(150-$case.Length-20))
     $pkg=Join-Path $case $padding
     [IO.Directory]::CreateDirectory($pkg) | Out-Null
-    foreach ($script in @('DriverTools.ps1','Install.ps1','Rollback.ps1','Set-Profile.ps1')) { Copy-Item -LiteralPath (Join-Path $Package $script) -Destination (Join-Path $pkg $script) }
+    foreach ($script in @('DriverTools.ps1','DistortionTools.ps1','Install.ps1','Rollback.ps1','Set-Profile.ps1')) { Copy-Item -LiteralPath (Join-Path $Package $script) -Destination (Join-Path $pkg $script) }
+    Copy-Item -LiteralPath (Join-Path $Package 'Distortion') -Destination $pkg -Recurse
     foreach ($name in @('CustomHeadsetOpenVR','CustomHeadsetOpenVR_Private')) {
         $dll=if ($name -eq 'CustomHeadsetOpenVR') { 'driver_CustomHeadsetOpenVR.dll' } else { 'driver_CustomHeadsetOpenVR_Private.dll' }
         $folder=Join-Path $pkg ($name+'\bin\win64')

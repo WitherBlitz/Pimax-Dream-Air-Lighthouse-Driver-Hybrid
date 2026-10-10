@@ -1,4 +1,6 @@
-# Dream Air LH1 0.3.6 — experimental
+# Dream Air Lighthouse Driver Hybrid 0.3.7 — experimental
+
+Release 0.3.7 adds the launcher distortion selector and bundles the requested custom default. The native driver remains the exact working .6 build (`1.3.0-dreamair-lh1.6-experimental`); tracking, rendering and prediction code are unchanged. The user confirmed native headset motion and Lighthouse controller tracking in .6.
 
 This fork retains the public sboys3 CustomHeadsetOpenVR 1.3.0 rendering and headset features and adds an optional **Pimax HMD pose source**. It targets the Dream Air, firmware 1.0.3, with your Lighthouse 1.0 A/b sync-cable setup. Controllers keep their existing SteamVR tracking. The new mode is an experiment based on measured software behavior; complete feature parity and game stability have not been established.
 
@@ -36,6 +38,16 @@ Use **Collect diagnostics** with SteamVR running. It saves logs/settings and a 3
 
 The recorder uses runtime output with zero prediction and the raw coordinate origin; it does not record raw optical data. A stationary capture cannot establish game stability. Action output and logs are available in the launcher and **LauncherLogs**.
 
+## Distortion profiles
+
+The launcher lists Dream Air compatible built-in profiles from the driver's live `info.json`, compatible custom JSON files in `%APPDATA%\CustomHeadset\Distortion`, and the bundled **Dream Air Maximum Comfort 100pct Overlap** profile. Your current valid selection is shown when the window opens. Opening the launcher never writes settings. The custom profile is first in the list and is the default for a fresh installation; reinstallation preserves an existing explicit selection.
+
+Choose a profile and click **Apply distortion**. SteamVR can stay running: the driver watches this setting and reloads it live. The launcher closes the original CustomHeadset GUI to prevent competing writes, saves the exact previous settings in **DistortionBackups**, then changes only `dreamAir.distortionProfile`. Tracking, force flags, IPD, eye rotation, other optics, floor and universe values are preserved. Existing distortion files are never overwritten. Missing, malformed, incompatible or unsafe profile names are rejected before settings are changed.
+
+The bundled custom file is byte-identical to the requested profile: SHA256 `00B17F0D11166C0796F344EB3F414FE113E898CBDA04E9C40A94C05B0FC8806E`. Its distortion and chromatic-aberration curves come from SBoys3's camera-calibrated Dream Air Default; this is generic profile data, not personal calibration. Its description calls for zero eye rotation for 100% overlap. Applying a profile preserves your eye rotation rather than changing it automatically.
+
+For script use: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Set-Distortion.ps1 -ProfileName "Dream Air Maximum Comfort 100pct Overlap"`. Profile names are JSON filenames without the `.json` extension. The bundled file is added to the driver's distortion folder only when applying it or installing the release.
+
 ## Floor height
 
 The launcher includes the exact nominal **6 ft 3 in = 75 in = 1.905 m** preset and custom feet/inches, centimetres or metres. SteamVR must be running. Hold the headset at the desired reference position and keep it still during the five-second delay and capture. After applying, the floor stays fixed; crouching and jumping still work.
@@ -46,7 +58,7 @@ Floor changes adjust only the standing origin's vertical offset, shared by track
 
 ## Restore and provenance
 
-Close SteamVR and the headset GUI before **Restore driver** or `Rollback.cmd`. It restores the exact drivers/settings saved immediately before the latest installation, replacing later settings edits. It does not change Pimax's OpenPort setting; also switch OpenPort off when returning to the stock renderer. Distortion files are preserved. Keep **Backups**, **FloorBackups** and **ProfileBackups** when moving to a new release. The inherited remove-before-copy sequencing of manual driver restore remains unchanged.
+Close SteamVR and the headset GUI before **Restore driver** or `Rollback.cmd`. It restores the exact drivers/settings saved immediately before the latest installation, replacing later settings edits. It does not change Pimax's OpenPort setting; also switch OpenPort off when returning to the stock renderer. Distortion files are preserved. Keep **Backups**, **FloorBackups**, **ProfileBackups** and **DistortionBackups** when moving to a new release. The inherited remove-before-copy sequencing of manual driver restore remains unchanged.
 
 `Source.zip` contains corresponding public source, tests, GUI source, pinned dependency sources and original GPLv2 notices. Rebuild with `Tools\Build.ps1` and Visual Studio C++ tools (default v145; override `-Toolset v143` for an appropriate VS 2022 installation). Builds pass `SkipPostBuild=true` and do not copy to live SteamVR. Binary hashes and source revisions are in **PROVENANCE.json** and **SHA256SUMS.txt**.
 

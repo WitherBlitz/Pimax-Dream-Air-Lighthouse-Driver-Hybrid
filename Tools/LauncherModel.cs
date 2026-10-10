@@ -4,7 +4,7 @@ using System.IO;
 using System.Globalization;
 using System.Text;
 namespace DreamAirLauncher {
-    public enum Operation { InstallPlay, InstallOpenPort, Rollback, Profile, FloorPreset, FloorCustom, FloorRead, FloorRestore, Diagnostics, HeadsetSettings }
+    public enum Operation { InstallPlay, InstallOpenPort, Rollback, Profile, FloorPreset, FloorCustom, FloorRead, FloorRestore, Diagnostics, HeadsetSettings, Distortion }
     public enum HeightUnit { FeetInches, Centimeters, Meters }
     public sealed class Command {
         public string FileName, Arguments, WorkingDirectory, LogPath;
@@ -37,7 +37,7 @@ namespace DreamAirLauncher {
             if(meters<0 || meters>10)throw new ArgumentException("Height must be between 0 and 10 metres.");return (double)meters;
         }
         private string Required(string name) { string path=Path.Combine(Root,name);if(!File.Exists(path))throw new FileNotFoundException("Release file is missing. Extract the complete ZIP and keep the launcher with it.",path);return path; }
-        public Command Build(Operation operation,string logPath,string profile,HeightUnit unit,decimal first,decimal second) {
+        public Command Build(Operation operation,string logPath,string profile,HeightUnit unit,decimal first,decimal second,string distortion=null) {
             if(operation==Operation.InstallPlay && profile=="Pimax")throw new ArgumentException("The Pimax native optics profile requires EVO OpenPort.");
             var command=new Command { WorkingDirectory=Root,LogPath=logPath };
             if(operation==Operation.Profile || operation==Operation.InstallPlay || operation==Operation.InstallOpenPort)
@@ -52,6 +52,9 @@ namespace DreamAirLauncher {
                     extra.AddRange(new[]{"-Operation",operation==Operation.InstallPlay?"Install-Play":(operation==Operation.InstallOpenPort?"Install-OpenPort":"Rollback"),"-LogPath",Path.GetFullPath(logPath)});break;
                 case Operation.Profile:
                     script="Set-Profile.ps1";extra.AddRange(new[]{"-Profile",profile});break;
+                case Operation.Distortion:
+                    distortion=distortion??DistortionCatalog.DefaultName;DistortionCatalog.ValidateName(distortion);
+                    script="Set-Distortion.ps1";extra.AddRange(new[]{"-ProfileName",distortion});break;
                 case Operation.FloorPreset:script="Floor-Height.ps1";extra.Add("-Preset6ft3");break;
                 case Operation.FloorRead:script="Floor-Height.ps1";extra.Add("-Read");break;
                 case Operation.FloorRestore:script="Floor-Height.ps1";extra.Add("-Restore");break;

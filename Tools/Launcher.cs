@@ -13,24 +13,26 @@ namespace DreamAirLauncher {
         private readonly LauncherModel model;
         private readonly Panel actions;
         private readonly TextBox output;
-        private readonly Label status,preview,profileHelp,firstLabel,secondLabel;
-        private readonly ComboBox units,profiles,backend;
+        private readonly Label status,preview,profileHelp,firstLabel,secondLabel,distortionHelp;
+        private readonly ComboBox units,profiles,backend,distortions;
+        private readonly string configRoot;
         private readonly NumericUpDown first,second;
         private HeightUnit previousUnit=HeightUnit.FeetInches;
         private bool changingUnits,busy,previewMode;
         private readonly Color ink=Color.FromArgb(25,38,56),accent=Color.FromArgb(31,86,184);
         public LauncherForm(string root) {
-            model=new LauncherModel(root);Text="Dream Air LH1 | Release launcher";
+            model=new LauncherModel(root);Text="Dream Air Lighthouse Driver Hybrid | Release launcher";
+            configRoot=File.Exists(Path.Combine(model.Root,".launcher-ui-sandbox"))?Path.Combine(model.Root,"CustomHeadset"):Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"CustomHeadset");
             Font=new Font("Segoe UI",10);BackColor=Color.FromArgb(243,246,250);ForeColor=ink;
             AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;
-            ClientSize=new Size(1000,760);MinimumSize=new Size(950,770);StartPosition=FormStartPosition.CenterScreen;
+            ClientSize=new Size(1000,855);MinimumSize=new Size(950,865);StartPosition=FormStartPosition.CenterScreen;
             var layout=new TableLayoutPanel { Dock=DockStyle.Fill,Padding=new Padding(24),ColumnCount=1,RowCount=5 };
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute,78));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,380));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute,78));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,475));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute,30));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,44));
             Controls.Add(layout);
             var header=new Panel { Dock=DockStyle.Fill };
-            header.Controls.Add(TextLabel("Dream Air LH1",0,0,650,38,new Font("Segoe UI",23,FontStyle.Bold)));
-            header.Controls.Add(TextLabel("Experimental release 0.3.6  |  Lighthouse 1.0  |  Sync cable A/b",2,44,750,26,null));layout.Controls.Add(header,0,0);
+            header.Controls.Add(TextLabel("Dream Air Lighthouse Driver Hybrid",0,0,920,38,new Font("Segoe UI",23,FontStyle.Bold)));
+            header.Controls.Add(TextLabel("Experimental release 0.3.7  |  Lighthouse 1.0  |  Sync cable A/b",2,44,750,26,null));layout.Controls.Add(header,0,0);
             actions=new Panel { Dock=DockStyle.Fill };
             var cards=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=1 };
             cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,45));cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,55));actions.Controls.Add(cards);layout.Controls.Add(actions,0,1);
@@ -43,9 +45,13 @@ namespace DreamAirLauncher {
             driver.Controls.Add(Button("Restore driver",215,158,166,34,()=>Run(Operation.Rollback),false));
             driver.Controls.Add(TextLabel("Tracking profile",18,211,180,24,null));profiles=SelectBox(18,239,180,new[]{"Pimax","Guard","Jitter","Smooth","Baseline"});driver.Controls.Add(profiles);
             driver.Controls.Add(Button("Apply profile",215,237,166,34,()=>Run(Operation.Profile),false));
-            profileHelp=TextLabel("",18,283,364,47,null);driver.Controls.Add(profileHelp);
+            profileHelp=TextLabel("",18,283,364,47,new Font("Segoe UI",9));driver.Controls.Add(profileHelp);
             profiles.SelectedIndexChanged+=(s,e)=>ProfileDescription();ProfileDescription();
-            driver.Controls.Add(Button("Collect diagnostics (30 seconds)",18,331,363,34,()=>Run(Operation.Diagnostics),false));
+            driver.Controls.Add(TextLabel("Distortion profile",18,331,363,24,null));
+            distortions=new ComboBox { Location=new Point(18,359),Width=363,DropDownStyle=ComboBoxStyle.DropDownList,DropDownWidth=560,Font=new Font("Segoe UI",9) };driver.Controls.Add(distortions);
+            driver.Controls.Add(Button("Apply distortion",18,396,166,34,()=>Run(Operation.Distortion),false));
+            distortionHelp=TextLabel("SteamVR can stay running. Closes headset settings.",197,392,184,42,new Font("Segoe UI",9));driver.Controls.Add(distortionHelp);
+            driver.Controls.Add(Button("Collect diagnostics (30 seconds)",18,439,363,30,()=>Run(Operation.Diagnostics),false));
             floor.Controls.Add(TextLabel("Keep SteamVR running. Hold the headset still at your reference position; capture starts after five seconds.",18,32,463,46,null));
             floor.Controls.Add(Button("Set floor to 6 ft 3 in",18,91,225,38,()=>Run(Operation.FloorPreset),true));
             floor.Controls.Add(Button("Read current height",261,91,220,38,()=>Run(Operation.FloorRead),false));
@@ -59,13 +65,14 @@ namespace DreamAirLauncher {
             floor.Controls.Add(Button("Apply custom height",18,269,225,36,()=>Run(Operation.FloorCustom),false));
             floor.Controls.Add(Button("Restore previous floor",261,269,220,36,()=>Run(Operation.FloorRestore),false));
             floor.Controls.Add(TextLabel("The floor stays fixed after applying. Crouching still works. Floor backups stay with this release.",18,325,463,45,null));
-            status=TextLabel("Ready. Opening this launcher does not change your driver or floor.",0,0,920,28,null);status.Dock=DockStyle.Fill;layout.Controls.Add(status,0,2);
+            status=TextLabel("Ready. Opening this launcher does not change your settings.",0,0,920,28,null);status.Dock=DockStyle.Fill;layout.Controls.Add(status,0,2);
             output=new TextBox { Dock=DockStyle.Fill,Multiline=true,ScrollBars=ScrollBars.Vertical,ReadOnly=true,BackColor=Color.White,BorderStyle=BorderStyle.FixedSingle,Font=new Font("Consolas",9) };
-            output.Text="Choose an action above.\n\nPimax uses native Pimax tracking in the existing floor space with your selected distortion profile. Use EVO OpenPort. Close SteamVR before changing to or from this profile.\n\nInstall/profile actions preserve your force-tracking settings. Floor writes require force-tracking flags off.";layout.Controls.Add(output,0,3);
+            output.Text=String.Join(Environment.NewLine+Environment.NewLine,new[]{"Choose an action above.","Pimax uses native Pimax tracking in the existing floor space with your selected distortion profile. Use EVO OpenPort. Close SteamVR before changing to or from this tracking profile.","The default distortion is Dream Air Maximum Comfort 100pct Overlap. Your current valid choice is shown above. Apply distortion changes only that profile and keeps SteamVR running.","Install/profile actions preserve your force-tracking settings. Floor writes require force-tracking flags off."});layout.Controls.Add(output,0,3);
             var footer=new FlowLayoutPanel { Dock=DockStyle.Fill,FlowDirection=FlowDirection.LeftToRight,Padding=new Padding(0,7,0,0) };
             var guide=Button("Open guide",0,0,125,30,ShowGuide,false);guide.Margin=new Padding(0,0,10,0);footer.Controls.Add(guide);
             footer.Controls.Add(Button("Release folder",0,0,145,30,()=>OpenFolder(model.Root),false));
             footer.Controls.Add(Button("Action logs",0,0,125,30,()=>OpenFolder(Path.Combine(model.Root,"LauncherLogs")),false));layout.Controls.Add(footer,0,4);
+            LoadDistortions();
             if(!File.Exists(Path.Combine(model.Root,"Floor-Height.ps1")) || !File.Exists(Path.Combine(model.Root,"Install.ps1"))) {
                 actions.Enabled=false;status.ForeColor=Color.Firebrick;status.Text="Release files are missing. Extract the complete ZIP and keep this EXE inside its release folder.";
             }
@@ -87,6 +94,12 @@ namespace DreamAirLauncher {
                 case 4:profileHelp.Text="Baseline uses Lighthouse poses without the guard. Existing force flags are preserved.";break;
                 default:profileHelp.Text="Native Pimax tracking with custom optics. Keeps the existing room and floor. Requires OpenPort and a SteamVR restart.";break;
             }
+        }
+        private void LoadDistortions() {
+            var catalog=DistortionCatalog.Load(model.Root,configRoot);distortions.Items.Clear();distortions.Items.AddRange(catalog.Names);
+            if(catalog.Names.Length>0)distortions.SelectedItem=catalog.SelectedName;
+            foreach(string warning in catalog.Warnings)Log(warning);
+            if(catalog.Names.Length==0){status.ForeColor=Color.Firebrick;status.Text="No valid Dream Air distortion profiles were found. Extract the complete release ZIP.";}
         }
         private double CurrentHeight() { return LauncherModel.Height((HeightUnit)units.SelectedIndex,first.Value,second.Value); }
         private void UpdatePreview() {
@@ -115,7 +128,8 @@ namespace DreamAirLauncher {
             if(busy)return;Command command;string logPath;
             try {
                 logPath=Path.Combine(model.Root,"LauncherLogs",DateTime.Now.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")+".txt");
-                command=model.Build(operation,logPath,profiles.Text,(HeightUnit)units.SelectedIndex,first.Value,second.Value);
+                command=model.Build(operation,logPath,profiles.Text,(HeightUnit)units.SelectedIndex,first.Value,second.Value,distortions.Text);
+                if(File.Exists(Path.Combine(model.Root,".launcher-ui-sandbox")) && operation==Operation.Distortion)command.Arguments+=" "+LauncherModel.Join(new[]{"-SandboxRoot",model.Root});
                 if(command.DirectGui){Process.Start(new ProcessStartInfo(command.FileName){WorkingDirectory=command.WorkingDirectory,UseShellExecute=true});status.Text="Opened headset settings.";return;}
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath));
             } catch(Exception e){status.ForeColor=Color.Firebrick;status.Text=e.Message;Log(e.Message);return;}
@@ -128,12 +142,12 @@ namespace DreamAirLauncher {
                 status.Text=result==0?"Completed. See the result below.":"Action failed (exit "+result+"). See the result below.";
             } catch(Win32Exception e) {status.ForeColor=Color.Firebrick;status.Text=e.NativeErrorCode==1223?"Windows elevation was cancelled.":e.Message;Log(status.Text);}
             catch(Exception e){status.ForeColor=Color.Firebrick;status.Text=e.Message;Log(e.Message);}
-            finally {busy=false;actions.Enabled=true;}
+            finally {busy=false;actions.Enabled=true;if(operation==Operation.Distortion)LoadDistortions();}
         }
         private void OpenFolder(string path) { try{if(!Directory.Exists(path)){Log("This folder is created after an action runs: "+path);return;}Process.Start(new ProcessStartInfo("explorer.exe",LauncherModel.Quote(path)){UseShellExecute=true});}catch(Exception e){Log(e.Message);} }
         private void ShowGuide() {
             try {
-                var form=new Form { Text="Dream Air LH1 | Guide",Size=new Size(920,760),StartPosition=FormStartPosition.CenterParent };
+                var form=new Form { Text="Dream Air Lighthouse Driver Hybrid | Guide",Size=new Size(920,760),StartPosition=FormStartPosition.CenterParent };
                 form.Controls.Add(new RichTextBox { Dock=DockStyle.Fill,ReadOnly=true,Text=File.ReadAllText(Path.Combine(model.Root,"START-HERE.md")),Font=new Font("Segoe UI",10),BackColor=Color.White,DetectUrls=false });form.Show(this);
             } catch(Exception e){Log(e.Message);}
         }
@@ -145,13 +159,19 @@ namespace DreamAirLauncher {
         public void SmokeTest(string file) {
             if(!File.Exists(Path.Combine(model.Root,".launcher-ui-sandbox")))throw new InvalidOperationException("UI smoke test needs its isolated sandbox marker.");
             previewMode=true;ShowInTaskbar=false;Opacity=0;Show();Application.DoEvents();
+            if(distortions.Text!="Dream Air Default")throw new Exception("UI did not retain the sandbox's explicit current distortion selection.");
             units.SelectedIndex=2;if(Math.Abs(CurrentHeight()-1.905)>1e-9)throw new Exception("Unit conversion lost target height.");
             units.SelectedIndex=1;if(Math.Abs(CurrentHeight()-1.905)>1e-9)throw new Exception("Metric unit conversion lost target height.");units.SelectedIndex=0;
             output.Clear();Run(Operation.FloorRead);var elapsed=Stopwatch.StartNew();
             while(busy && elapsed.ElapsedMilliseconds<15000){Application.DoEvents();Thread.Sleep(10);}
             Application.DoEvents();
             if(busy || !actions.Enabled || !units.Enabled || !first.Enabled || !status.Text.StartsWith("Completed") || !output.Text.Contains("LAUNCHER-SMOKE-READ-ONLY"))throw new Exception("UI result/callback smoke test failed.");
-            PerformLayout();Refresh();Application.DoEvents();using(var image=new Bitmap(Width,Height)){DrawToBitmap(image,new Rectangle(0,0,Width,Height));image.Save(file,System.Drawing.Imaging.ImageFormat.Png);}Close();
+            output.Clear();distortions.SelectedItem=DistortionCatalog.DefaultName;
+            if(distortions.Text!=DistortionCatalog.DefaultName)throw new Exception("Bundled default was missing from the UI.");
+            Run(Operation.Distortion);elapsed.Restart();
+            while(busy && elapsed.ElapsedMilliseconds<15000){Application.DoEvents();Thread.Sleep(10);}Application.DoEvents();
+            if(busy || !actions.Enabled || !backend.Enabled || !profiles.Enabled || !distortions.Enabled || !units.Enabled || !first.Enabled || !second.Enabled || !status.Text.StartsWith("Completed") || !output.Text.Contains("Distortion profile set to "+DistortionCatalog.DefaultName) || DistortionCatalog.Load(model.Root,configRoot).SelectedName!=DistortionCatalog.DefaultName)throw new Exception("UI distortion Apply/callback smoke test failed.");
+            PerformLayout();Refresh();backend.Refresh();profiles.Refresh();distortions.Refresh();units.Refresh();first.Refresh();second.Refresh();Application.DoEvents();using(var image=new Bitmap(Width,Height)){DrawToBitmap(image,new Rectangle(0,0,Width,Height));image.Save(file,System.Drawing.Imaging.ImageFormat.Png);}Close();
         }
     }
     static class Program {

@@ -4,6 +4,7 @@ param(
     [string]$SandboxRoot
 )
 . (Join-Path $PSScriptRoot 'DriverTools.ps1')
+. (Join-Path $PSScriptRoot 'DistortionTools.ps1')
 $paths=Get-DriverPaths $SandboxRoot
 Assert-VrStopped $paths
 if($Profile -eq 'Pimax' -and $Backend -ne 'OpenPort'){throw 'The Pimax native optics profile requires EVO OpenPort. Select EVO OpenPort before installing.'}
@@ -16,6 +17,12 @@ $steamPath=Join-Path $paths.SteamConfig 'steamvr.vrsettings'
 $settings=Read-JsonOrEmpty $settingsPath
 $steamSettings=Read-JsonOrEmpty $steamPath
 $settings=Apply-Profile $settings $Profile
+$defaultDistortion='Dream Air Maximum Comfort 100pct Overlap'
+if(!$settings.dreamAir.PSObject.Properties['distortionProfile'] -or [string]::IsNullOrWhiteSpace([string]$settings.dreamAir.distortionProfile)){
+    $distortions=Get-DistortionProfiles $paths.Config
+    if(!$distortions.ContainsKey($defaultDistortion)){throw 'The bundled Dream Air default distortion profile is missing or invalid.'}
+    Set-JsonProperty $settings.dreamAir 'distortionProfile' $defaultDistortion
+}
 Set-JsonProperty $settings 'onlyHandlePrivateFunctionality' ($Backend -eq 'Play')
 if($Profile -eq 'Pimax'){
     # A standalone native HMD otherwise stops SteamVR loading Lighthouse.
@@ -52,6 +59,7 @@ try {
     if ($Backend -eq 'Play') { Copy-DriverDirectory $sourcePrivate $stagePrivate }
     Assert-VrStopped $paths
     $mutating=$true
+    Add-BundledDistortion $paths.Config $defaultDistortion
     Remove-DriverDirectory $drivers $main
     Move-Item -LiteralPath $stageMain -Destination $main
     Remove-DriverDirectory $drivers $private

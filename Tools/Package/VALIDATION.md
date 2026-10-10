@@ -1,6 +1,14 @@
-# Validation — Dream Air LH1 0.3.6 experimental
+# Validation — Dream Air Lighthouse Driver Hybrid 0.3.7 experimental
 
 Built on 2026-10-10 from sboys3 public 1.3.0, upstream commit `21185da63a9e4307ae876b3702a43a43044d451c`, with pinned submodules. Exact source revision and binary hashes are in PROVENANCE.json/SHA256SUMS.txt; Source.zip includes corresponding public source.
+
+## Launcher 0.3.7 and preserved native driver
+
+The user confirmed the .6 native headset motion and Lighthouse controller tracking work. Release .7 changes the launcher, settings scripts and bundled profile data only. The compiled .6 driver is unchanged: SHA256 `C0D1F0DAD2DEEC398B4F8712E73A39C64C9748A1616EF1FB7BDE5A1E3DC8C606`, internal version `1.3.0-dreamair-lh1.6-experimental`. C++ tracking/rendering code was not edited or rebuilt.
+
+The distortion regressions were run before implementation and reproduced the missing selector command, profile catalog, profile writer, fresh-install default and nested packaging. The completed selector is covered by 13 launcher/model cases, 3 elevation-host cases and 8 isolated distortion cases. Tests exercise actual PowerShell 5.1 scripts and JSON files: string/array device compatibility, exact backup bytes, changing only the distortion field, exact bundled data, preservation of existing custom files and explicit choices, missing/malformed/incompatible/traversal inputs, and a bundled data target beyond MAX_PATH.
+
+The isolated UI smoke test verifies that opening preserves settings byte-for-byte, a previous built-in choice is shown, and Apply selects the bundled custom data while preserving IPD, eye rotation, native tracking, force flags, floor and universe. PNG previews verify the product name and controls. Real packaging includes the nested profile and its corresponding public source. No live install or live optical setting change was performed for .7; process closure and the headset's live distortion reload remain runtime behavior inherited from the settings interface and are not claimed as a new hardware test.
 
 ## Evidence for the new source
 
@@ -18,7 +26,7 @@ The installed Valve receiver console identified both A/B stations, received hits
 
 - The user confirmed .5 motion works perfectly and requested preservation. The complete .5 release, corresponding source, full Git history bundle, installed DLL and live settings were copied to a separate timestamped snapshot before alignment changes.
 - Read-only .5 captures identified PVR FloorLevel universe 31 and Lighthouse universe 1784100291 with identical station/controller serials. The controllers differed by approximately two metres. Matching the primary station's full pose gave a rigid mapping with controller residuals 7.4/10.7 mm and orientation residuals under one degree. Using the secondary instead left approximately 194 mm controller errors. The .6 change therefore maps only Lighthouse world transforms from the serial-matched primary; native HMD optics, tracking and prediction stay unchanged.
-- A single rigid transform cannot reconcile the differently saved secondary-station calibration: its model remains approximately 214 mm and 5.43 degrees from the PVR-reported pose. No station calibration is rewritten or averaged. Primary/source validity, early callbacks, full model/world offsets, frame and universe changes, loss/reset, malformed data, ambiguous references and HMD isolation have regression coverage. Visual alignment remains a live validation item until confirmed by the user.
+- A single rigid transform cannot reconcile the differently saved secondary-station calibration: its model remains approximately 214 mm and 5.43 degrees from the PVR-reported pose. No station calibration is rewritten or averaged. Primary/source validity, early callbacks, full model/world offsets, frame and universe changes, loss/reset, malformed data, ambiguous references and HMD isolation have regression coverage. The user subsequently confirmed working .6 native headset and Lighthouse controller tracking.
 
 - The user confirmed the saved optics were restored, then reported disconnected/delayed head turns. A 20-second moving capture had 1,285 valid PVR/OpenVR samples, zero missed/dropped compositor frames and maximum compositor GPU time 1.8 ms. Rotational velocity did not follow FloorLevel orientation: inverse room-yaw mapping reduced derivative error from roughly 1.85 to 0.033 rad/s. Measured SteamVR prediction applies the submitted angular vector in body space, requiring an additional inverse pose rotation. Linear velocity was already in FloorLevel world space and is preserved. New regressions reproduced both missing mappings; corresponding correction is in .5. Live confirmation of the prediction correction is recorded separately.
 

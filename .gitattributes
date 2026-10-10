@@ -1,0 +1,2 @@
+# The bundled optical profile must retain its exact published bytes on checkout.
+Tools/Package/Distortion/*.json -text

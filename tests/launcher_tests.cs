@@ -11,7 +11,7 @@ class LauncherTests {
         int failed=0,total=0;
         Action<string,Action> test=(name,run)=>{total++;try{run();Console.WriteLine("PASS "+name);}catch(Exception e){failed++;Console.WriteLine("FAIL "+name+": "+e.Message);}};
         string root=Path.Combine(Path.GetFullPath(".."),"launcher-tests",Guid.NewGuid().ToString(),"folder with spaces & apostrophe's");Directory.CreateDirectory(root);
-        foreach(string name in new[]{"Install.ps1","Rollback.ps1","Set-Profile.ps1","Floor-Height.ps1","Collect-Diagnostics.ps1","Launcher-Elevated.ps1"})File.WriteAllText(Path.Combine(root,name),"");
+        foreach(string name in new[]{"Install.ps1","Rollback.ps1","Set-Profile.ps1","Set-Distortion.ps1","Floor-Height.ps1","Collect-Diagnostics.ps1","Launcher-Elevated.ps1"})File.WriteAllText(Path.Combine(root,name),"");
         Directory.CreateDirectory(Path.Combine(root,"CustomHeadsetGUI"));File.WriteAllText(Path.Combine(root,"CustomHeadsetGUI","custom-headset-gui.exe"),"");
         var model=new LauncherModel(root);string log=Path.Combine(root,"log with spaces.txt");
         Func<Operation,Command> build=op=>model.Build(op,log,"Guard",HeightUnit.FeetInches,6,3);
@@ -26,6 +26,22 @@ class LauncherTests {
         test("PowerShell uses file arguments instead of command text",()=>{var c=build(Operation.FloorPreset);Check(c.Arguments.Contains("-File") && !c.Arguments.Contains("-Command") && c.WorkingDirectory==root && c.Arguments.Contains("-Preset6ft3"));});
         test("custom unit request uses invariant decimal value",()=>{var c=model.Build(Operation.FloorCustom,log,"Guard",HeightUnit.Meters,1.905m,0);Check(c.Arguments.Contains("-Meters") && c.Arguments.Contains("1.905"));});
         test("profile names are bounded before command execution",()=>{Reject(()=>model.Build(Operation.Profile,log,"Guard; injected",HeightUnit.Meters,1,0));});
+        test("distortion command is a non-elevated file action with a quoted custom profile",()=>{
+            var c=model.Build(Operation.Distortion,log,"Pimax",HeightUnit.Meters,1m,0m,"My optics & apostrophe's");
+            Check(!c.Elevate && c.Arguments.Contains("Set-Distortion.ps1") && c.Arguments.Contains("-ProfileName") && c.Arguments.Contains("\"My optics & apostrophe's\"") && !c.Arguments.Contains("-Profile\""));
+        });
+        test("distortion catalog filters incompatible and malformed files while retaining current selection without writes",()=>{
+            string config=Path.Combine(root,"CustomHeadset"),directory=Path.Combine(config,"Distortion");Directory.CreateDirectory(directory);Directory.CreateDirectory(Path.Combine(root,"Distortion"));
+            File.WriteAllText(Path.Combine(root,"Distortion","Dream Air Maximum Comfort 100pct Overlap.json"),"{\"device\":\"DreamAir\",\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117]}");
+            File.WriteAllText(Path.Combine(config,"info.json"),"{\"builtInDistortionProfiles\":{\"Dream Air Default\":{\"device\":[\"DreamAir\",\"Other\"],\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117]},\"Wrong device\":{\"device\":\"DreamAirSE\",\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117]}}}");
+            File.WriteAllText(Path.Combine(directory,"Mine.json"),"{\"device\":[\"Other\",\"DreamAir\"],\"type\":\"RadialBezier\",\"distortions\":[0,0,55,117]}");File.WriteAllText(Path.Combine(directory,"Broken.json"),"{broken");
+            string file=Path.Combine(config,"settings.json"),before="{\"dreamAir\":{\"distortionProfile\":\"Mine\",\"ipd\":64.1}}";File.WriteAllText(file,before);
+            var catalog=DistortionCatalog.Load(root,config);var names=catalog.Names;
+            Check(names.Length==3 && names[0]=="Dream Air Maximum Comfort 100pct Overlap" && Array.IndexOf(names,"Dream Air Default")>=0 && Array.IndexOf(names,"Mine")>=0);
+            Check(catalog.SelectedName=="Mine" && File.ReadAllText(file)==before);
+            File.Delete(file);catalog=DistortionCatalog.Load(root,config);Check(catalog.SelectedName=="Dream Air Maximum Comfort 100pct Overlap" && !File.Exists(file));
+            File.WriteAllText(Path.Combine(directory,"Dream Air Maximum Comfort 100pct Overlap.json"),"{broken");catalog=DistortionCatalog.Load(root,config);names=catalog.Names;Check(Array.IndexOf(names,"Dream Air Maximum Comfort 100pct Overlap")<0);
+        });
         test("Pimax profile and install keep selected source",()=>{var c=model.Build(Operation.Profile,log,"Pimax",HeightUnit.Meters,1,0);Check(c.Arguments.Contains("Pimax"));c=model.Build(Operation.InstallOpenPort,log,"Pimax",HeightUnit.Meters,1,0);Check(c.Arguments.Contains("-Profile")&&c.Arguments.Contains("Pimax"));Reject(()=>model.Build(Operation.InstallPlay,log,"Pimax",HeightUnit.Meters,1,0));Reject(()=>model.Build(Operation.InstallOpenPort,log,"Pimax; injected",HeightUnit.Meters,1,0));});
         test("missing script prevents launch",()=>{File.Delete(Path.Combine(root,"Floor-Height.ps1"));Reject(()=>build(Operation.FloorPreset));});
         test("headset GUI launches from its own resource folder",()=>{var c=build(Operation.HeadsetSettings);Check(c.DirectGui && !c.Elevate && c.WorkingDirectory==Path.Combine(root,"CustomHeadsetGUI"));});
