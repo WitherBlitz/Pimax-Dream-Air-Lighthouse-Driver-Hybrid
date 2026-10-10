@@ -102,5 +102,9 @@ function Get-Profile([string]$Profile) {
 function Apply-Profile($Settings,[string]$Profile) {
     Set-JsonProperty $Settings 'dreamAirTracking' (Get-Profile $Profile)
     Set-JsonProperty $Settings 'dreamAirPoseSource' $(if($Profile -eq 'Pimax'){'Pimax'}else{'Lighthouse'})
+    $headset=if($Settings.PSObject.Properties['dreamAir']){$Settings.dreamAir}else{[PSCustomObject]@{}}
+    Set-JsonProperty $headset 'useNativePimaxTracking' ($Profile -eq 'Pimax')
+    if($Profile -eq 'Pimax'){Set-JsonProperty $headset 'recenterPimaxPlayspace' $false}
+    Set-JsonProperty $Settings 'dreamAir' $headset
     return $Settings
 }

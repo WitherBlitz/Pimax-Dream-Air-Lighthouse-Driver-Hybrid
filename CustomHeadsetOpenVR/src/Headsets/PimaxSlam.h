@@ -3,6 +3,9 @@
 #include "../Helpers/PimaxCommon.h"
 #include <atomic>
 #include <thread>
+#ifdef PVR_EXISTS
+#include "../Tracking/PimaxRuntimePose.h"
+#endif
 
 class PimaxSlamDriver : public BaseHeadsetShim, public PimaxCommon {
 public:
@@ -26,5 +29,9 @@ private:
 	void PvrTrackingThread();
 
 	std::thread pvrTrackingThread;
-	std::atomic<bool> pvrTrackingRunning;
+	std::atomic<bool> pvrTrackingRunning{false};
+	bool nativeLighthouseMode = false;
+#ifdef PVR_EXISTS
+	dreamair::PimaxRuntimePose nativeMapper;
+#endif
 };

@@ -23,6 +23,7 @@
 
 #include "../Config/ConfigLoader.h"
 #include "../Tracking/TrackingManager.h"
+#include "../Tracking/RuntimeHeadsetSelection.h"
 
 bool lockedOut = false;
 
@@ -341,6 +342,11 @@ bool CustomHeadsetDeviceProvider::HandleDeviceAdded(const char *&pchDeviceSerial
 	if(hidModifier.originalDeviceClasses.find(std::string(pchDeviceSerialNumber)) != hidModifier.originalDeviceClasses.end()){
 		DriverLog("Device %s restoring original class %d", pchDeviceSerialNumber, hidModifier.originalDeviceClasses[std::string(pchDeviceSerialNumber)]);
 		eDeviceClass = (vr::ETrackedDeviceClass)hidModifier.originalDeviceClasses[std::string(pchDeviceSerialNumber)];
+	}
+	if(driverConfig.dreamAir.useNativePimaxTracking && eDeviceClass==vr::TrackedDeviceClass_HMD
+		&& dreamair::runtimeHeadsetSelection.Contains(pchDeviceSerialNumber)){
+		DriverLog("DreamAir native Pimax tracking: suppressing duplicate Lighthouse HMD %s",pchDeviceSerialNumber);
+		return false;
 	}
 	
 	#ifndef FULLY_BLOCK_AAPVR

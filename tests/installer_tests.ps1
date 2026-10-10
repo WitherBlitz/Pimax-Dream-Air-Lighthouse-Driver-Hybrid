@@ -38,9 +38,18 @@ Check ((Read-JsonOrEmpty $cfg).dreamAirTracking.smoothPosition) 'Jitter profile 
 $settings=Read-JsonOrEmpty $cfg
 Check (!$settings.dreamAirTracking.enabled -and $settings.forceTracking) 'Baseline or force preservation incorrect.'
 $cases++; Write-Host 'PASS profile changes preserve explicit forced tracking'
-& (Join-Path $Package 'Set-Profile.ps1') -SandboxRoot $root -Profile Pimax
+$privateHash=File-Hash $cfg
+$rejected=$false
+try { & (Join-Path $Package 'Set-Profile.ps1') -SandboxRoot $root -Profile Pimax } catch { $rejected=$true }
+Check ($rejected -and (File-Hash $cfg) -eq $privateHash) 'Private-only Pimax profile was not rejected before changing settings.'
+$rejected=$false
+try { & (Join-Path $Package 'Install.ps1') -SandboxRoot $root -Backend Play -Profile Pimax } catch { $rejected=$true }
+Check ($rejected -and (File-Hash $cfg) -eq $privateHash) 'Play/Pimax install was not rejected before changing settings.'
+$cases++; Write-Host 'PASS Play/Pimax mismatch rejected without changing settings'
+& (Join-Path $Package 'Rollback.ps1') -SandboxRoot $root
+& (Join-Path $Package 'Install.ps1') -SandboxRoot $root -Backend OpenPort -Profile Pimax
 $settings=Read-JsonOrEmpty $cfg
-Check ($settings.dreamAirPoseSource -eq 'Pimax' -and !$settings.dreamAirTracking.enabled -and $settings.forceTracking) 'Pimax profile or force preservation incorrect.'
+Check ($settings.dreamAirPoseSource -eq 'Pimax' -and $settings.dreamAir.useNativePimaxTracking -and !$settings.dreamAirTracking.enabled -and $settings.forceTracking) 'Pimax profile or force preservation incorrect.'
 $cases++; Write-Host 'PASS Pimax profile selects native source without changing force flags'
 & (Join-Path $Package 'Rollback.ps1') -SandboxRoot $root
 Check ((File-Hash $cfg) -eq $cfgHash -and (File-Hash $steam) -eq $steamHash) 'Rollback was not byte exact.'
@@ -68,4 +77,4 @@ $rejected=$false
 try { Assert-ChildPath (Join-Path $root 'SteamVR\drivers') (Join-Path $root 'outside') | Out-Null } catch { $rejected=$true }
 Check $rejected 'Unsafe path accepted.'
 $cases++; Write-Host 'PASS out-of-root destructive targets rejected'
-Write-Host "$cases/7 installer cases passed"
+Write-Host "$cases/8 installer cases passed"

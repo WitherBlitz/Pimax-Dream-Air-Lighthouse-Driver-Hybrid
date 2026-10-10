@@ -268,6 +268,8 @@ public:
 	};
 	class PimaxHeadsetConfig : public BaseHeadsetConfig{
 	public:
+		// Dream Air: native PVR headset with custom optics, without Lighthouse HMD shimming.
+		bool useNativePimaxTracking = false;
 		bool recenterPimaxPlayspace = true;
 		bool enablePimaxPassthrough = false;
 		bool forcePimaxPassthrough = false;

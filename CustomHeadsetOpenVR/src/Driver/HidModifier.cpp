@@ -1,4 +1,5 @@
 #include "HidModifier.h"
+#include "../Tracking/RuntimeHeadsetSelection.h"
 #include "DriverLog.h"
 #include "../Config/ConfigLoader.h"
 #include "../Helpers/PimaxCommon.h"
@@ -344,6 +345,8 @@ std::string HidModifier::ReadLighthouseConfig(HidDeviceInfo &info){
 	}
 	
 	DriverLog("HidModifier - Lighthouse device name: %s, manufacturer: %s", info.lighthouseDeviceName.c_str(), info.lighthouseDeviceManufacturer.c_str());
+	dreamair::runtimeHeadsetSelection.Observe(info.lighthouseDeviceName,info.lighthouseDeviceManufacturer,info.lighthouseDeviceClass,
+		info.lighthouseDeviceSerial,PimaxCommon::GetInfo().headsetType==Config::HeadsetType::DreamAir);
 	
 	std::map<std::string, ordered_json> jsonOverrides = {};
 	if(driverConfig.meganeX8K.enable){

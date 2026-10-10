@@ -1,8 +1,12 @@
-# Validation — Dream Air LH1 0.3.3 experimental
+# Validation — Dream Air LH1 0.3.4 experimental
 
 Built on 2026-10-10 from sboys3 public 1.3.0, upstream commit `21185da63a9e4307ae876b3702a43a43044d451c`, with pinned submodules. Exact source revision and binary hashes are in PROVENANCE.json/SHA256SUMS.txt; Source.zip includes corresponding public source.
 
 ## Evidence for the new source
+
+After returning to stock Pimax rendering, the user reports perfect tracking and no stutter, but prefers the previous custom optics. The .4 Pimax profile obtains poses directly from its own PVR FloorLevel session and keeps the inherited custom renderer. It does not use the .3 alignment bridge.
+
+A read-only comparison produced **250/250 fully valid pairs**. Selecting FloorLevel on a new PVR session without recentering matched stock raw positions within **0.25 mm per axis** in a mostly stationary capture. Both reported universe **31**. The EyeLevel default had a vertical offset. These measurements support using FloorLevel and the runtime-reported universe; they do not establish moving-head visual stability. The installed System32 PVR client reports SDK 1.33.1. The user's working stock state and exact old optics were backed up before installation.
 
 The user reports stable translation and rotation in the Pimax lobby but severe jitter/loss in SteamVR. The restored station setup remains A/b with a sync cable. `forceTracking=true` eliminates gray screens but can make an invalid or frozen pose appear valid.
 
@@ -12,6 +16,9 @@ The installed Valve receiver console identified both A/B stations, received hits
 
 ## Completed software checks
 
+- New runtime mapping tests cover timing, position, orientation, velocities, partial flags, nonfinite data, API failure, stale/future timestamps, disconnect and finite held references. Headset identity tests exclude controllers, unrelated headsets and the native runtime HMD from duplicate suppression.
+- Independent .4 review identified backend mismatch, suppression before original class restoration and missing disconnection publication when stopping the worker. All were corrected before packaging. Seven profile cases preserve optics and force flags. Eight installer cases include rejection of Play/private-only Pimax mode before mutation.
+
 - New bridge regressions first failed against a scaffold, then passed. Review timing regressions reproduced mismatched represented timestamps, omitted submission latency and stale native acceptance (15/18 before correction). Steady-window/motion regressions also failed before implementation. Final aggregate: **22/22 native pose, 41/41 existing pose, 50/50 floor, 11/11 launcher, 3/3 isolated elevation-host and 5/5 profile cases**.
 - Native coverage includes noncommuting rotations and rotated head offsets, matching-pose timing, delayed submissions, genuine validity before force flags, finite invalid fallback, continuity after Lighthouse callbacks stop, consistent low-motion alignment, source changes, lifecycle and controller exclusion. Both native and forwarded Lighthouse offsets are rebased through serialized submission.
 - Independent read-only review found timing and test-coverage defects, reproduced with focused regressions and corrected. The review does not judge live improvement or PVR coordinate stability across recenter/reconnect; restart SteamVR to rebuild alignment after such changes.
@@ -20,7 +27,7 @@ The installed Valve receiver console identified both A/B stations, received hits
 
 ## Validation boundaries
 
-At packaging time, **the new .3 native-source DLL still requires live installation and runtime testing**. A subsequent live-test report is separate from this sealed package. Unit/sandbox tests and the API comparison do not establish Gorilla Tag stability, latency, controller alignment, complete feature parity or recovery across a Pimax tracking-origin change.
+At packaging time, **the new .4 renderer/pose combination still requires live installation and runtime testing**. A subsequent live-test report is separate from this sealed package. Unit/sandbox tests and the API comparison do not establish Gorilla Tag stability, latency, controller alignment, complete feature parity or proprietary PVR behavior. Earlier bridge test results below remain historical coverage, not validation of the .4 live path.
 
 The earlier .2 driver was installed and tested; its original Lighthouse path still showed invalid/frozen callbacks in the resumed session. The .2 guard correction remains included: chronological history uses callback arrival, while valid predictor fields retain their relative offsets. Baseline statistics continue updating.
 

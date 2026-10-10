@@ -38,6 +38,7 @@ namespace DreamAirLauncher {
         }
         private string Required(string name) { string path=Path.Combine(Root,name);if(!File.Exists(path))throw new FileNotFoundException("Release file is missing. Extract the complete ZIP and keep the launcher with it.",path);return path; }
         public Command Build(Operation operation,string logPath,string profile,HeightUnit unit,decimal first,decimal second) {
+            if(operation==Operation.InstallPlay && profile=="Pimax")throw new ArgumentException("The Pimax native optics profile requires EVO OpenPort.");
             var command=new Command { WorkingDirectory=Root,LogPath=logPath };
             if(operation==Operation.Profile || operation==Operation.InstallPlay || operation==Operation.InstallOpenPort)
                 if(profile!="Guard" && profile!="Jitter" && profile!="Smooth" && profile!="Baseline" && profile!="Pimax")throw new ArgumentException("Unknown tracking profile.");

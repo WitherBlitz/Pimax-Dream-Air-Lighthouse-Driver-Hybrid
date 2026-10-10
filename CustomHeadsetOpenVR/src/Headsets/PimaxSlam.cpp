@@ -12,6 +12,8 @@
 #include "nlohmann/json.hpp"
 #include <PVR_Math.h>
 #include <shared_mutex>
+#include "../Tracking/PimaxRuntimePose.h"
+#include "../Tracking/TrackingManager.h"
 
 // Matches driver_aapvr.
 static constexpr uint64_t k_UniverseId = 30;
@@ -795,6 +797,7 @@ static std::shared_mutex s_controllerDriverMutex;
 static std::unique_ptr<PimaxCameraDriver> s_cameraDriver;
 
 PimaxSlamDriver::PimaxSlamDriver() {
+	nativeLighthouseMode=GetInfo().headsetType==Config::HeadsetType::DreamAir && driverConfig.dreamAir.useNativePimaxTracking;
 	bool isPimaxRuntimeNewEnough = false;
 	std::string pimaxEvoVersion = GetInstalledProgramVersion("PimaxEVO");
 	if(pimaxEvoVersion != ""){
@@ -841,9 +844,18 @@ void PimaxSlamDriver::PosTrackedDeviceActivate(uint32_t& unObjectId, vr::EVRInit
 	vr::VRProperties()->SetStringProperty(container, vr::Prop_ManufacturerName_String, "Pimax");
 	vr::VRProperties()->SetStringProperty(container, vr::Prop_ModelNumber_String, GetHmdInfo().ProductName);
 	vr::VRProperties()->SetStringProperty(container, vr::Prop_RenderModelName_String, "generic_hmd");
-	if(k_UniverseId){
-		vr::VRProperties()->SetUint64Property(container, vr::Prop_CurrentUniverseId_Uint64, k_UniverseId);
+	uint64_t universe=k_UniverseId;
+	if(nativeLighthouseMode){
+		shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
+		auto session=GetPvrSession();
+		int nativeUniverse=pvr_getTrackedDeviceIntProperty(session,pvrTrackedDevice_HMD,pvrTrackedDeviceProp_UniverseId_int,-1);
+		if(nativeUniverse<=0 || pvr_setTrackingOriginType(session,pvrTrackingOrigin_FloorLevel)!=pvr_success){
+			returnValue=vr::VRInitError_Driver_Failed;return;
+		}
+		universe=static_cast<uint64_t>(nativeUniverse);
+		DriverLog("DreamAir native Pimax tracking: FloorLevel, universe %llu, no recenter",universe);
 	}
+	vr::VRProperties()->SetUint64Property(container, vr::Prop_CurrentUniverseId_Uint64, universe);
 
 	vr::VRProperties()->SetStringProperty(
 		container, vr::Prop_InputProfilePath_String, ("{" + driverConfigLoader.info.driverName + "}/input/pimaxhmd_profile.json").c_str());
@@ -872,10 +884,14 @@ void PimaxSlamDriver::PosTrackedDeviceActivate(uint32_t& unObjectId, vr::EVRInit
 
 	returnValue = vr::VRInitError_None;
 	BaseHeadsetShim::PosTrackedDeviceActivate(unObjectId, returnValue);
+	if(nativeLighthouseMode && returnValue==vr::VRInitError_None && isActive && shimActive){
+		dreamair::trackingManager.Register(unObjectId);
+	}
 }
 
 void PimaxSlamDriver::SubDeactivate() {
 	StopPvrTracking();
+	if(nativeLighthouseMode)dreamair::trackingManager.Unregister(static_cast<uint32_t>(deviceIndex));
 	StopEyeTracking();
 }
 
@@ -1033,6 +1049,12 @@ void PimaxSlamDriver::StopPvrTracking() {
 		DriverLog("Stopping PVR tracking thread");
 		pvrTrackingThread.join();
 		pvrTrackingThread = {};
+		if(nativeLighthouseMode && isActive && deviceIndex>=0){
+			// A session-loss callback can stop this worker before its next sample.
+			// Publish loss explicitly, retaining the finite reference across reconnects.
+			auto pose=nativeMapper.Map({},pvr_invalid_param,false,0);
+			vr::VRServerDriverHost()->TrackedDevicePoseUpdated(deviceIndex,pose,sizeof(pose));
+		}
 	}
 }
 
@@ -1054,12 +1076,26 @@ void PimaxSlamDriver::PvrTrackingThread() {
 			break;
 		}
 
-		const auto pvrNow = GetPvrTime();
-
+		double pvrNow=0,submissionTime=0;
 		pvrTrackingState trackingState = {};
+		pvrResult nativeResult=pvr_invalid_param;
+		bool nativeConnected=false;
 		{
 			shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
-			pvr_getTrackingState(GetPvrSession(), pvrNow, &trackingState);
+			auto session=GetPvrSession();pvrNow=GetPvrTime();
+			if(session){
+				nativeResult=pvr_getTrackingState(session, pvrNow, &trackingState);
+				if(nativeLighthouseMode){
+					pvrHmdStatus status{};
+					nativeConnected=pvr_getHmdStatus(session,&status)==pvr_success && status.ServiceReady && status.HmdPresent && !status.ShouldQuit;
+				}
+			}
+			submissionTime=GetPvrTime();
+		}
+		if(nativeLighthouseMode){
+			auto pose=nativeMapper.Map(trackingState.HeadPose,nativeResult,nativeConnected,submissionTime);
+			vr::VRServerDriverHost()->TrackedDevicePoseUpdated(deviceIndex,pose,sizeof(pose));
+			continue; // Lighthouse controllers retain their existing driver and poses.
 		}
 		
 		if((trackingState.HeadPose.StatusFlags & 2) == 0 || trackingSinceTime == 0){

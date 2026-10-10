@@ -218,6 +218,9 @@ void parseBaseHeadsetConfig(json headsetData, Config::BaseHeadsetConfig& headset
 	}
 	// Handle Pimax-specific config via runtime type check
 	if(Config::PimaxHeadsetConfig* pimaxConfig = dynamic_cast<Config::PimaxHeadsetConfig*>(&headsetConfig)){
+		if(headsetData["useNativePimaxTracking"].is_boolean()){
+			pimaxConfig->useNativePimaxTracking = headsetData["useNativePimaxTracking"].get<bool>();
+		}
 		if(headsetData["recenterPimaxPlayspace"].is_boolean()){
 			pimaxConfig->recenterPimaxPlayspace = headsetData["recenterPimaxPlayspace"].get<bool>();
 		}
@@ -612,6 +615,7 @@ ordered_json baseHeadsetInfo(Config::BaseHeadsetConfig& headsetConfig){
 	};
 	// Handle Pimax-specific config via runtime type check
 	if(Config::PimaxHeadsetConfig* pimaxConfig = dynamic_cast<Config::PimaxHeadsetConfig*>(&headsetConfig)){
+		result["useNativePimaxTracking"] = pimaxConfig->useNativePimaxTracking;
 		result["recenterPimaxPlayspace"] = pimaxConfig->recenterPimaxPlayspace;
 		result["enablePimaxPassthrough"] = pimaxConfig->enablePimaxPassthrough;
 		result["forcePimaxPassthrough"] = pimaxConfig->forcePimaxPassthrough;
@@ -861,7 +865,7 @@ void ConfigLoader::WriteDiagnosticInfo(){
 		{"sourceValid",s.sourceValid},{"sourceResult",s.sourceResult},{"outputValid",s.outputValid},
 		{"lastDecision",dreamair::DecisionName(s.lastDecision)},
 		{"secondsSinceLastSample",s.samples ? ordered_json(now-s.lastArrival) : ordered_json(nullptr)}};
-	tracking["poseSource"]=native.enabled?"Pimax":"Lighthouse";
+	tracking["poseSource"]=driverConfig.dreamAir.useNativePimaxTracking?"PimaxRuntime":(native.enabled?"Pimax":"Lighthouse");
 	tracking["pimaxPose"]={{"aligned",native.aligned},{"sourceValid",native.pimaxValid},{"samples",native.pimaxSamples},{"invalid",native.pimaxInvalid},
 		{"secondsSinceLastSample",native.pimaxSamples?ordered_json(now-native.lastPimaxArrival):ordered_json(nullptr)},
 		{"lighthouseSourceValid",native.lighthouseValid},{"lighthouseSamples",native.lighthouseSamples},{"lighthouseInvalid",native.lighthouseInvalid},

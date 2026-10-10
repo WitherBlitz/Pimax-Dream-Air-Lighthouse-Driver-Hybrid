@@ -30,7 +30,7 @@ namespace DreamAirLauncher {
             Controls.Add(layout);
             var header=new Panel { Dock=DockStyle.Fill };
             header.Controls.Add(TextLabel("Dream Air LH1",0,0,650,38,new Font("Segoe UI",23,FontStyle.Bold)));
-            header.Controls.Add(TextLabel("Experimental release 0.3.3  |  Lighthouse 1.0  |  Sync cable A/b",2,44,750,26,null));layout.Controls.Add(header,0,0);
+            header.Controls.Add(TextLabel("Experimental release 0.3.4  |  Lighthouse 1.0  |  Sync cable A/b",2,44,750,26,null));layout.Controls.Add(header,0,0);
             actions=new Panel { Dock=DockStyle.Fill };
             var cards=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=1 };
             cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,45));cards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,55));actions.Controls.Add(cards);layout.Controls.Add(actions,0,1);
@@ -61,7 +61,7 @@ namespace DreamAirLauncher {
             floor.Controls.Add(TextLabel("The floor stays fixed after applying. Crouching still works. Floor backups stay with this release.",18,325,463,45,null));
             status=TextLabel("Ready. Opening this launcher does not change your driver or floor.",0,0,920,28,null);status.Dock=DockStyle.Fill;layout.Controls.Add(status,0,2);
             output=new TextBox { Dock=DockStyle.Fill,Multiline=true,ScrollBars=ScrollBars.Vertical,ReadOnly=true,BackColor=Color.White,BorderStyle=BorderStyle.FixedSingle,Font=new Font("Consolas",9) };
-            output.Text="Choose an action above.\n\nPimax uses the headset pose from Pimax's runtime, aligned to SteamVR after a fresh valid Lighthouse pose. Install/profile actions preserve your force-tracking settings.\n\nFloor writes require force-tracking flags off. Live floor apply/restore and game stability remain unverified.";layout.Controls.Add(output,0,3);
+            output.Text="Choose an action above.\n\nPimax uses native Pimax tracking in the existing floor space with your selected distortion profile. Use EVO OpenPort. Close SteamVR before changing to or from this profile.\n\nInstall/profile actions preserve your force-tracking settings. Floor writes require force-tracking flags off.";layout.Controls.Add(output,0,3);
             var footer=new FlowLayoutPanel { Dock=DockStyle.Fill,FlowDirection=FlowDirection.LeftToRight,Padding=new Padding(0,7,0,0) };
             var guide=Button("Open guide",0,0,125,30,ShowGuide,false);guide.Margin=new Padding(0,0,10,0);footer.Controls.Add(guide);
             footer.Controls.Add(Button("Release folder",0,0,145,30,()=>OpenFolder(model.Root),false));
@@ -85,7 +85,7 @@ namespace DreamAirLauncher {
                 case 2:profileHelp.Text="Jitter adds position filtering to Guard; it can add delay.";break;
                 case 3:profileHelp.Text="Smooth also filters rotation and can add delay during fast movement.";break;
                 case 4:profileHelp.Text="Baseline uses Lighthouse poses without the guard. Existing force flags are preserved.";break;
-                default:profileHelp.Text="Pimax headset poses. Waits for room alignment at startup. Controllers keep their existing tracking.";break;
+                default:profileHelp.Text="Native Pimax tracking with custom optics. Keeps the existing room and floor. Requires OpenPort and a SteamVR restart.";break;
             }
         }
         private double CurrentHeight() { return LauncherModel.Height((HeightUnit)units.SelectedIndex,first.Value,second.Value); }

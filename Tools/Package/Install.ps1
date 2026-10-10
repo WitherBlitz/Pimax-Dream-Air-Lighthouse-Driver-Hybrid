@@ -6,6 +6,7 @@ param(
 . (Join-Path $PSScriptRoot 'DriverTools.ps1')
 $paths=Get-DriverPaths $SandboxRoot
 Assert-VrStopped $paths
+if($Profile -eq 'Pimax' -and $Backend -ne 'OpenPort'){throw 'The Pimax native optics profile requires EVO OpenPort. Select EVO OpenPort before installing.'}
 $drivers=Join-Path $paths.Runtime 'drivers'
 if (!(Test-Path -LiteralPath $drivers)) { throw "SteamVR drivers directory not found: $drivers" }
 $main=Assert-ChildPath $drivers (Join-Path $drivers 'CustomHeadsetOpenVR')

@@ -483,6 +483,13 @@ static bool EnsurePvrSession(bool forceTryConnect = false) {
 		// Filter by: do we support the attached headset?
 		s_info.pvrConnected = s_info.headsetType != Config::HeadsetType::None;
 		if (s_info.pvrConnected) {
+			if(s_info.headsetType==Config::HeadsetType::DreamAir && driverConfig.dreamAir.useNativePimaxTracking){
+				// This client's default EyeLevel origin is relative to its connection height.
+				// The stock Lighthouse Pimax driver uses FloorLevel; never recenter it here.
+				if(pvr_setTrackingOriginType(s_pvrSession,pvrTrackingOrigin_FloorLevel)!=pvr_success){
+					s_info.pvrConnected=false;return false;
+				}
+			}
 			pvrHmdTrackingStyle trackingStyle = pvrHmdTrackingStyle_Unknown;
 			trackingStyle = (pvrHmdTrackingStyle)pvr_getTrackedDeviceIntProperty(
 				s_pvrSession,
@@ -605,12 +612,14 @@ bool PimaxCommon::IsPimaxLighthouseDevice(std::string_view model, std::string_vi
 bool PimaxCommon::IsLighthouseHeadsetConnected(){
 	PimaxInfo info = PimaxCommon::GetInfo();
 	// useSlamTracking is unreliable early in the startup of the pi_server, even for Lighthouse headsets, so instead always allow Lighthouse devices
-	return info.headsetType && driverConfig.ConfigFromHeadsetType(info.headsetType)->enable && info.connected; //&& (s_info.directConnected || !info.useSlamTracking);
+	return info.headsetType && driverConfig.ConfigFromHeadsetType(info.headsetType)->enable && info.connected
+		&& !(info.headsetType==Config::HeadsetType::DreamAir && driverConfig.dreamAir.useNativePimaxTracking);
 }
 
 bool PimaxCommon::IsSlamHeadsetConnected(){
 	PimaxInfo info = PimaxCommon::GetInfo();
-	return info.headsetType && driverConfig.ConfigFromHeadsetType(info.headsetType)->enable && info.connected && info.isOpenPortEnabled && info.useSlamTracking;
+	return info.headsetType && driverConfig.ConfigFromHeadsetType(info.headsetType)->enable && info.connected && info.isOpenPortEnabled
+		&& (info.useSlamTracking || (info.headsetType==Config::HeadsetType::DreamAir && driverConfig.dreamAir.useNativePimaxTracking));
 }
 
 #ifdef PVR_EXISTS
