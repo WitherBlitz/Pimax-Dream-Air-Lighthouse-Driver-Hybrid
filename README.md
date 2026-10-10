@@ -65,3 +65,5 @@ This preserves the original GUI and optional private helper binaries. Their priv
 Based on sboys3 CustomHeadsetOpenVR 1.3.0, upstream commit `21185da63a9e4307ae876b3702a43a43044d451c`. Original authorship, dependency notices and the [GPLv2 license](LICENCE.md) are retained. This fork is not an official Pimax or sboys3 release. The [upstream README](Docs/DreamAir-LH1/UPSTREAM-README.md) is preserved for original feature and author information.
 
 Personal settings, tracking databases, diagnostics and restore snapshots are kept locally and are not release assets.
+
+This driver is for a fixing of the Sboys3 driver for my basestation 1.0s, essentially being a hybrid driver between the original Pimax driver as well as the sboys3 driver. If you're having issues with basestation 1.0s or tracking jitter of some kind or tracking loss and drift, give this hybrid driver a shot.
