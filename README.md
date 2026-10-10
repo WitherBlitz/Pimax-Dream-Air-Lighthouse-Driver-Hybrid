@@ -1,154 +1,67 @@
-# CustomHeadsetOpenVR
-This is a custom headset driver for SteamVR that allows several to operate as native SteamVR headsets. It provides significant image customization to all native SteamVR headsets through the custom shader.  
+# Dream Air Lighthouse Driver Hybrid
 
-<picture><img src="./CustomHeadsetGUI/public/CustomHeadsetCropped.png" height="96"><img/></picture>
+An unofficial fork of [sboys3/CustomHeadsetOpenVR](https://github.com/sboys3/CustomHeadsetOpenVR) for the Pimax Dream Air with Lighthouse 1.0 tracking. It combines Pimax's native headset poses with the existing custom renderer and distortion profiles, and aligns Lighthouse controllers and trackers to the headset's floor space.
 
-## Installing
-1. Download the latest release from the [releases page](https://github.com/sboys3/CustomHeadsetOpenVR/releases/latest)
-2. Extract the whole folder within the zip to a place you want it.
-3. Run `custom-headset-gui.exe` in `CustomHeadsetGUI` to finish the installation and configure settings.
-![Installation Tutorial](Docs/Media/CustomHeadsetInstall.webp)
+The working 0.3.6 setup was confirmed on October 10, 2026: headset motion and tracking were stable, the previous custom optics were restored, and both controllers matched their physical positions. Testing used Dream Air firmware 1.0.3 and two Lighthouse 1.0 stations in A/b with a sync cable. This is experimental software; the result is from one setup rather than a guarantee for every headset or game.
 
-**Note:** If the GUI fails to launch or displays incorrectly, you may need to install the WebView2 Evergreen Bootstrapper as administrator. The GUI is built with Tauri, which relies on the Microsoft Edge WebView2 runtime. [WebView2 Evergreen Bootstrapper](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
-<details>
-<summary>Manual Driver Installation</summary>
-You do not need to do this if you installed the driver with the GUI.
+Release 0.3.7 adds the launcher distortion selector and retains the exact confirmed 0.3.6 driver binary. Choose a compatible built-in or custom Dream Air profile and click **Apply distortion**. The bundled **Dream Air Maximum Comfort 100pct Overlap** profile is selected by default when no previous selection exists. Opening the launcher never changes settings; applying a profile saves a settings backup and changes only the Dream Air distortion selection. Close the original CustomHeadset GUI before applying. Other optical controls remain in **Headset settings**.
 
-1. Copy the `CustomHeadsetOpenVR` folder from inside the zip into `C:\Program Files (x86)\Steam\steamapps\common\SteamVR\drivers` 
-2. Disable the MeganeXSuperlight driver in SteamVR
-3. Restart SteamVR
-</details>
+## Download and run
 
-## Updating
-1. Download the latest release from the [releases page](https://github.com/sboys3/CustomHeadsetOpenVR/releases/latest)
-2. Extract the whole folder within the zip to a place you want it.
-3. Run `custom-headset-gui.exe` in `CustomHeadsetGUI`
-4. Go to the about page and install the new driver.
+Download the ZIP from [Releases](https://github.com/WitherBlitz/Dream-Air-Lighthouse-Driver-Hybrid/releases), extract the whole folder into a writable location, and open **DreamAir-LH1.exe**. Keep the launcher, scripts, driver folders and Tools together.
 
+1. Close SteamVR and the original CustomHeadset settings GUI.
+2. Keep Pimax running and enable **EVO OpenPort**.
+3. In the launcher, select **EVO OpenPort** and the **Pimax** tracking profile, then click **Install driver**.
+4. Start SteamVR and check headset motion and controller alignment.
 
-## Supported Headsets
-* MeganeX 8K
-* Dream Air
-* Dream Air SE
-* Pimax 8K/5K
-* Crystal Super Micro-OLED
-* Crystal Super 50PPD
-* Crystal Super 57PPD
-* Crystal Super Ultrawide
-* Crystal Light
-* Crystal OG
-* The Custom Shader works with all SteamVR native headsets
-	* Vive, Index, Bigscreen Beyond
-
-## Configuring
-Run `custom-headset-gui.exe` to configure settings.
-Almost all settings will be immediately applied without restarting SteamVR.  
-
-
-## Donations and Affiliates
-If you find this project helpful, consider supporting it through donations or using the affiliate links below:
-
-### Donation Links
-If my project improved your VR experience, consider donating.  
-[<img src="./CustomHeadsetGUI/public/patreon-logo.svg" height="24" alt="Patreon"> Patreon](https://patreon.com/SBoys3)  
-[<img src="./CustomHeadsetGUI/public/ko-fi-logo.svg" height="24" alt="Ko-fi"> Ko-fi](https://ko-fi.com/sboys3)  
-
-### Affiliate Links
-If my driver is a major factor in your decision of purchasing the Dream Air, use my affiliate link at no cost to you. You can use the affiliate links for other Pimax headsets to support me as well.  
-[<img src="./CustomHeadsetGUI/public/DreamAirHD.png" height="24" alt="Pimax"> Pimax with $25 off](https://pimax.com/products/pimax-dream-air/?discount=25SBOY3&ref=sboys3)  
-
-## Building
-1. Clone the repository with `git clone https://github.com/sboys3/CustomHeadsetOpenVR.git`
-2. Navigate to the repository folder with `cd CustomHeadsetOpenVR` in the terminal.
-3. Pull the submodules with `git submodule update --init --recursive` then `git pull --recurse-submodules`
-4. Open the solution in Visual Studio.
-5. Change the configuration to Release.
-6. Build the solution. It will create the driver folder in `output` and copy it to the SteamVR drivers folder.
-
-To pull the latest changes, run `git pull --recurse-submodules`
-
-### Building on Linux
-You may have to go back to older commits if the current one uses windows specific APIs, or submit a pull request with cross platform support. I do intend to maintain Linux compatibility, but currently none of the headsets work on Linux for reasons out of my control.
-1. Follow the cloning steps above
-2. `cd CustomHeadsetOpenVR/CustomHeadsetOpenVR`
-3. `mkdir build && cd build`
-4. `cmake .. -DCMAKE_BUILD_TYPE=Release`
-5. `make -j16`
-6. `rsync -a --delete CustomHeadsetOpenVR/ ~/.steam/steam/steamapps/common/SteamVR/drivers/CustomHeadsetOpenVR/`
-
-### Manual Configuration
-Enter `%APPDATA%/CustomHeadset` into the file browser top bar to get to the settings folder.  
-Edit the `settings.json` file based on the [Config header file](./CustomHeadsetOpenVR/src/Config/Config.h)  
-Distortion profiles go in a folder named `Distortion` and they are referenced by their name.  
-
-### Closed Source Components
-The DRM related functionality on the Dream Air is not open source, but the released driver can be used with a compiled from source driver. When using Pimax EVO OpenPort, this is not necessary.
-
-The `onlyHandlePrivateFunctionality` property allows you to run a compiled source driver alongside the closed-source driver. When set to `true` in the root of the config, it disables all functionality in the driver that contains private code except for the private code itself. This allows a compiled source driver to handle all the important parts of the driver. A driver without the closed source components is unaffected by the option.
-
-To use this feature:
-
-1. Build the driver from source following the steps above
-2. Rename the released driver folder, the DLL, and the name in `driver.vrdrivermanifest` to something else (e.g., `CustomHeadsetOpenVR_Private`)
-3. Set `onlyHandlePrivateFunctionality: true` in the root of your `settings.json` config file
-4. The closed-source driver will handle private functionality while your source-built driver handles everything else
-
+Installation backs up the existing driver and settings. **Restore driver** restores that installation backup. The complete instructions and limitations are in [START-HERE](Tools/Package/START-HERE.md).
 
 ## Features
-- MeganeX and Dream Air
-	- [x] Running as a native headset
-	- [x] Ignore other headsets
-	- [x] Code to generate the distortion mesh
-	- [X] Darken the display when no motion is detected
-      * ⚠️Be careful with high brightnesses to avoid burn in on the MeganeX. This driver does not automatically dim the headset in bright scenes which may permanently dim the panel if viewed for many hours.
-	- [X] Support for non square outputs to light edges of the display
-	- [X] A good default distortion profile
-	- [X] A near perfect default distortion profile
-	- [X] Multiple distortion profiles
-	- [X] Hidden area mesh
-- Custom Shader
-	- [X] Support all native headsets (MeganeX, Dream Air, BSB 1&2, Index, Vive, etc)
-	- [X] Replace SteamVR compositor shaders at runtime
-	- [X] Configure contrast, chroma, and gamma
-	- [X] Subpixel shifts for the MeganeX and Vive
-	- [X] sRGB color correction for the MeganeX
-	- [X] Remove mura correction or black clamp for any native headset
-- Config
-	- [X] Define the structure of the config file
-	- [X] Create MeganeX section
-	- [X] Read config file
-	- [X] Hot reload when the config is changed
-	- [X] Load custom distortion profiles
-	- [ ] Define the structure for the overrides section
-- GUI
-	- [X] Create a Tauri project
-	- [X] Create a Angular project within it
-	- [X] Configure MeganeX settings
-	- [ ] Edit distortion profiles my dragging points on a curve
-	- [ ] Create overrides for any headset
-	- [X] Install the driver
-	- [ ] Change physical MeganeX settings
-- Driver
-	- [X] Linux build support
-	- [ ] Override any property of any SteamVR device based on the config
-	- [ ] Change device types
-	- [ ] Apply presets to devices ex: Vive tracker or generic headset
-	- [X] Output json file with information about SteamVR and devices for configuration utilities to use.
 
+- Native Pimax FloorLevel headset tracking without recentering the room.
+- Correct rotational prediction frames for head turns, with native linear velocity preserved.
+- A rigid mapping of Lighthouse controller, tracker and station world poses into the native headset space.
+- Existing sboys3 distortion, visual settings and custom renderer.
+- A launcher distortion selector with **Dream Air Maximum Comfort 100pct Overlap** as the default on fresh installations. Existing selections are preserved.
+- A Windows EXE launcher, tracking profiles, diagnostics, installation and rollback.
+- A **6 ft 3 in / 1.905 m** floor preset and custom feet/inches, centimetres or metres.
 
-## License
-This project is licensed under the GPLv2 license. See the LICENSE file for more details.
-I may relicense this project for to allow for use that GPLv2 does not allow for so be aware of that when you contribute
+Install/profile actions preserve the existing force-tracking settings. Force tracking can mark a held pose valid during tracking loss; it does not recover missing movement. Diagnostics distinguish genuine pose health from forced validity. Floor writes currently require both force-tracking settings to be disabled temporarily, and live floor apply/restore remains unverified.
 
-## Contributing
-By committing to this repository you give me the right to relicense your code for others to use. If you want to make a significant contribution but do not want to comply with this, mark your code as such and let me know so I will be able to remove it if I need to.
+## Controller alignment and OpenXR
 
-Try to keep the coding style consistent with existing files. But other than keeping tabbing consistent, I will not enforce strict guidelines.
+The driver can align coordinate origins, but a rigid transform cannot correct conflicting station geometry saved separately by SteamVR and Pimax. On the confirmed setup, resolving that software layout mismatch was also necessary. The published release does not contain or apply the owner's room calibration. See [the alignment notes](Docs/DreamAir-LH1/ALIGNMENT.md) for the measured cause and repair scope.
 
+For OpenXR games, select **SteamVR's OpenXR runtime** so the game uses this SteamVR driver. Keep Pimax running with OpenPort enabled. A native Pimax OpenXR rendering session bypasses this custom renderer and its distortion profile. Game compatibility and extended reconnect behavior have not been established across all titles.
 
-## Supporters
-Thanks to everyone who has shown appreciation to me for this project. It has been an amazing experience having so many people thank me for my work. I really appreciate the kind words you all had for me and I have a special appreciation to those who went a step further and donated.
+## Build from source
 
-<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="80" height="80"><img/></picture> [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/df8e8bbdb98cda795b9602697ea50542.jpg" width="64" height="64"><img/></picture>]( https://t.me/realtavirtualevr "") [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default.png" width="64" height="64"><img/></picture>](# "GoodyearBiff") [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/773d6805d3aa80d1316a26ec1b364379.jpg" width="64" height="64"><img/></picture>](https://github.com/gregtakacs "Greg Takacs") <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/7ac08ea782441bede3916424fc32bc0b.jpg" width="64" height="64"><img/></picture>](https://www.youtube.com/@Essentia-Channel "Essentia") [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/3e9ac621e70bbe27c69d79f346c30491.jpg" width="64" height="64"><img/></picture>](https://www.youtube.com/c/VRFlightSimGuy "VR Flight Sim Guy") <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="64" height="64"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/f2abff6a17e0ff18d125e7ba7b003fb2.png" width="48" height="48"><img/></picture>](https://hookmanuk.itch.io/ "hookman") <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/7ddc5c7cc7adf41aff1285ac1cd10ba0.jpg" width="48" height="48"><img/></picture>](# "Richard Åsberg (WebMaximus)") <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="48" height="48"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/04c6935fd569b309d57c3c0a51bea463.jpg" width="32" height="32"><img/></picture>](https://www.artstation.com/cless "") <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/cbcb907081b8d18f7bcc2755ef8f72ef.jpg" width="32" height="32"><img/></picture>](https://github.com/hsinyu-chen "hsin yu,chen") [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default.png" width="32" height="32"><img/></picture>](# "Nick Babalis") [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/faec663d3c4ea4ce4341e621eaeab573.jpg" width="32" height="32"><img/></picture>](https://www.youtube.com/@MartydudeVR "MartydudeVR") <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> [<picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default.png" width="32" height="32"><img/></picture>](# "SparkerInVR") <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> <picture><img src="https://raw.githubusercontent.com/sboys3/supporters/main/icons/default-anon.png" width="32" height="32"><img/></picture> 
+Clone with submodules:
 
-If you want your info displayed, send me a message on the platform you donated on. You can tell me where to get an icon, a name to display when hovered, and a link to wherever you want. You can provide any combination of the 3 and I will add it. Alternatively you can remain autonomous as a generic icon. I can always change it for you in the future, but information will stay in github history forever.
+```powershell
+git clone --recurse-submodules https://github.com/WitherBlitz/Dream-Air-Lighthouse-Driver-Hybrid.git
+cd Dream-Air-Lighthouse-Driver-Hybrid
+```
+
+Install Visual Studio C++ desktop build tools and a Windows SDK, then run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Tools\Build.ps1
+```
+
+The tested toolset is MSVC v145. An appropriate VS 2022 installation can select `-Toolset v143`. The build compiles the driver, tools and launcher and runs the native unit suites. It passes `SkipPostBuild=true` and does not install into the live SteamVR directory. Pimax software must supply a compatible PVR client for native tracking.
+
+To package, extract the original [sboys3 1.3.0 Windows release](https://github.com/sboys3/CustomHeadsetOpenVR/releases/tag/1.3.0), then choose a fresh destination:
+
+```powershell
+python .\Tools\Package.py --upstream C:\Build\CustomHeadset-1.3.0-Windows --destination C:\Build\DreamAir-LH1-release
+```
+
+This preserves the original GUI and optional private helper binaries. Their private implementation is not part of this public source; the OpenPort configuration avoids the private helper. See [validation](Tools/Package/VALIDATION.md) for evidence and remaining limitations.
+
+## Credits and license
+
+Based on sboys3 CustomHeadsetOpenVR 1.3.0, upstream commit `21185da63a9e4307ae876b3702a43a43044d451c`. Original authorship, dependency notices and the [GPLv2 license](LICENCE.md) are retained. This fork is not an official Pimax or sboys3 release. The [upstream README](Docs/DreamAir-LH1/UPSTREAM-README.md) is preserved for original feature and author information.
+
+Personal settings, tracking databases, diagnostics and restore snapshots are kept locally and are not release assets.
