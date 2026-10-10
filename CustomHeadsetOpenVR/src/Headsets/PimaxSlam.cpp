@@ -9,14 +9,25 @@
 #include <DirectXMath.h>
 #include <filesystem>
 #include <memory>
+#include <fstream>
+#include <cstdlib>
 #include "nlohmann/json.hpp"
 #include <PVR_Math.h>
 #include <shared_mutex>
 #include "../Tracking/PimaxRuntimePose.h"
+#include "../Tracking/PimaxRuntimeRoom.h"
 #include "../Tracking/TrackingManager.h"
 
 // Matches driver_aapvr.
 static constexpr uint64_t k_UniverseId = 30;
+
+static std::optional<double> ReadNativeVelocityYaw(uint64_t universe){
+	const auto root=_wgetenv(L"ProgramData");
+	if(!root)return {};
+	std::ifstream room(std::filesystem::path(root)/L"Pimax"/L"runtime"/L"chaperone_info.vrchap");
+	if(!room)return {};
+	return dreamair::ReadPimaxVelocityYaw(room,universe);
+}
 
 static inline vr::HmdMatrix34_t StoreHmdMatrix34(const PVR::Matrix4f& matrix) {
 	return { matrix.M[0][0],
@@ -853,7 +864,11 @@ void PimaxSlamDriver::PosTrackedDeviceActivate(uint32_t& unObjectId, vr::EVRInit
 			returnValue=vr::VRInitError_Driver_Failed;return;
 		}
 		universe=static_cast<uint64_t>(nativeUniverse);
+		auto velocityYaw=ReadNativeVelocityYaw(universe);
+		if(!velocityYaw){DriverLog("DreamAir native Pimax tracking: room yaw unavailable; refusing incorrect prediction");returnValue=vr::VRInitError_Driver_Failed;return;}
+		nativeUniverseId=universe;nativeVelocityYaw=*velocityYaw;
 		DriverLog("DreamAir native Pimax tracking: FloorLevel, universe %llu, no recenter",universe);
+		DriverLog("DreamAir native Pimax tracking: velocity frame yaw %.9f rad",nativeVelocityYaw);
 	}
 	vr::VRProperties()->SetUint64Property(container, vr::Prop_CurrentUniverseId_Uint64, universe);
 
@@ -1037,6 +1052,27 @@ void PimaxSlamDriver::HandleEvent(const vr::VREvent_t& event) {
 }
 
 void PimaxSlamDriver::StartPvrTracking() {
+	if(nativeLighthouseMode && !pvrTrackingRunning){
+		int currentUniverse=0;
+		{
+			shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
+			currentUniverse=pvr_getTrackedDeviceIntProperty(GetPvrSession(),pvrTrackedDevice_HMD,pvrTrackedDeviceProp_UniverseId_int,-1);
+		}
+		if(currentUniverse<=0 || static_cast<uint64_t>(currentUniverse)!=nativeUniverseId){
+			if(!nativeUniverseMismatchReported){
+				DriverLog("DreamAir native Pimax tracking: universe changed/unavailable; restart SteamVR before resuming");
+				auto pose=nativeMapper.Map({},pvr_invalid_param,false,0);
+				vr::VRServerDriverHost()->TrackedDevicePoseUpdated(deviceIndex,pose,sizeof(pose));
+				nativeUniverseMismatchReported=true;
+			}
+			return;
+		}
+		nativeUniverseMismatchReported=false;
+		// Reload the unchanged room convention after a runtime reconnect.
+		auto yaw=ReadNativeVelocityYaw(nativeUniverseId);
+		if(!yaw)return;
+		nativeVelocityYaw=*yaw;
+	}
 	shared_lock_guard<std::shared_mutex> lock(PimaxCommon::pvrLock);
 	if (GetPvrSession() && !pvrTrackingRunning.exchange(true) ) {
 		DriverLog("Starting PVR tracking thread");
@@ -1093,7 +1129,7 @@ void PimaxSlamDriver::PvrTrackingThread() {
 			submissionTime=GetPvrTime();
 		}
 		if(nativeLighthouseMode){
-			auto pose=nativeMapper.Map(trackingState.HeadPose,nativeResult,nativeConnected,submissionTime);
+			auto pose=nativeMapper.Map(trackingState.HeadPose,nativeResult,nativeConnected,submissionTime,nativeVelocityYaw);
 			vr::VRServerDriverHost()->TrackedDevicePoseUpdated(deviceIndex,pose,sizeof(pose));
 			continue; // Lighthouse controllers retain their existing driver and poses.
 		}

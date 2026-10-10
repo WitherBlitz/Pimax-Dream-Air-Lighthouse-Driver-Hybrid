@@ -5,6 +5,11 @@ if (!$paths.Sandbox -and (Get-Process -Name custom-headset-gui -ErrorAction Sile
 $file=Join-Path $paths.Config 'settings.json'
 $settings=Read-JsonOrEmpty $file
 if($Profile -eq 'Pimax' -and $settings.PSObject.Properties['onlyHandlePrivateFunctionality'] -and $settings.onlyHandlePrivateFunctionality){throw 'Install this release with EVO OpenPort before selecting native Pimax tracking.'}
+if($Profile -eq 'Pimax'){
+    $runtime=Read-JsonOrEmpty (Join-Path $paths.SteamConfig 'steamvr.vrsettings')
+    $multi=$runtime.PSObject.Properties['steamvr'] -and $runtime.steamvr.PSObject.Properties['activateMultipleDrivers'] -and $runtime.steamvr.activateMultipleDrivers
+    if(!$multi){throw 'Install this release with EVO OpenPort and Pimax selected first. It enables multiple drivers so Lighthouse controllers and the tracking feed stay active.'}
+}
 $nativeWasSelected=$settings.PSObject.Properties['dreamAir'] -and $settings.dreamAir.PSObject.Properties['useNativePimaxTracking'] -and $settings.dreamAir.useNativePimaxTracking
 if($Profile -eq 'Pimax' -or $nativeWasSelected){Assert-VrStopped $paths}
 $backupRoot=Join-Path $PSScriptRoot 'ProfileBackups'

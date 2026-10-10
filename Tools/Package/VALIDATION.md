@@ -1,4 +1,4 @@
-# Validation — Dream Air LH1 0.3.4 experimental
+# Validation — Dream Air LH1 0.3.5 experimental
 
 Built on 2026-10-10 from sboys3 public 1.3.0, upstream commit `21185da63a9e4307ae876b3702a43a43044d451c`, with pinned submodules. Exact source revision and binary hashes are in PROVENANCE.json/SHA256SUMS.txt; Source.zip includes corresponding public source.
 
@@ -16,8 +16,12 @@ The installed Valve receiver console identified both A/B stations, received hits
 
 ## Completed software checks
 
+- The user confirmed the saved optics were restored, then reported disconnected/delayed head turns. A 20-second moving capture had 1,285 valid PVR/OpenVR samples, zero missed/dropped compositor frames and maximum compositor GPU time 1.8 ms. Rotational velocity did not follow FloorLevel orientation: inverse room-yaw mapping reduced derivative error from roughly 1.85 to 0.033 rad/s. Measured SteamVR prediction applies the submitted angular vector in body space, requiring an additional inverse pose rotation. Linear velocity was already in FloorLevel world space and is preserved. New regressions reproduced both missing mappings; corresponding correction is in .5. Live confirmation of the prediction correction is recorded separately.
+
+- Live .4 testing loaded the exact saved distortion profile and System32 PVR client. With SteamVR's default single-driver setting, Lighthouse did not load and native head poses were invalid. Enabling `activateMultipleDrivers` loaded Lighthouse and restored genuine native pose validity, while suppressing the duplicate Dream Air HMD. A sandbox regression reproduced the missing setting before the installer correction. The user then confirmed: old optics restored, tracking still good. Extended game and reconnect behavior remain unverified.
+
 - New runtime mapping tests cover timing, position, orientation, velocities, partial flags, nonfinite data, API failure, stale/future timestamps, disconnect and finite held references. Headset identity tests exclude controllers, unrelated headsets and the native runtime HMD from duplicate suppression.
-- Independent .4 review identified backend mismatch, suppression before original class restoration and missing disconnection publication when stopping the worker. All were corrected before packaging. Seven profile cases preserve optics and force flags. Eight installer cases include rejection of Play/private-only Pimax mode before mutation.
+- Independent review identified backend mismatch, suppression before original class restoration, missing disconnection publication and the native profile's multiple-driver requirement. These were corrected before packaging. Seven profile cases preserve optics and force flags. Nine installer cases include rejection of Play/private-only Pimax mode and refusal to activate native poses without the required runtime setting.
 
 - New bridge regressions first failed against a scaffold, then passed. Review timing regressions reproduced mismatched represented timestamps, omitted submission latency and stale native acceptance (15/18 before correction). Steady-window/motion regressions also failed before implementation. Final aggregate: **22/22 native pose, 41/41 existing pose, 50/50 floor, 11/11 launcher, 3/3 isolated elevation-host and 5/5 profile cases**.
 - Native coverage includes noncommuting rotations and rotated head offsets, matching-pose timing, delayed submissions, genuine validity before force flags, finite invalid fallback, continuity after Lighthouse callbacks stop, consistent low-motion alignment, source changes, lifecycle and controller exclusion. Both native and forwarded Lighthouse offsets are rebased through serialized submission.
@@ -27,7 +31,7 @@ The installed Valve receiver console identified both A/B stations, received hits
 
 ## Validation boundaries
 
-At packaging time, **the new .4 renderer/pose combination still requires live installation and runtime testing**. A subsequent live-test report is separate from this sealed package. Unit/sandbox tests and the API comparison do not establish Gorilla Tag stability, latency, controller alignment, complete feature parity or proprietary PVR behavior. Earlier bridge test results below remain historical coverage, not validation of the .4 live path.
+The .5 build is installed and loaded with the exact saved profile. A stationary follow-up had 1,282 valid PVR/OpenVR samples and zero missed/dropped frames; it does not establish moving-head comfort. A separate local report records the user's moving test and subsequent capture. Unit/sandbox checks do not establish Gorilla Tag stability, controller alignment, complete feature parity or proprietary PVR behavior. Earlier bridge test results below remain historical coverage, not validation of the .5 live path.
 
 The earlier .2 driver was installed and tested; its original Lighthouse path still showed invalid/frozen callbacks in the resumed session. The .2 guard correction remains included: chronological history uses callback arrival, while valid predictor fields retain their relative offsets. Baseline statistics continue updating.
 

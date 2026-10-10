@@ -31,6 +31,9 @@ private:
 	std::thread pvrTrackingThread;
 	std::atomic<bool> pvrTrackingRunning{false};
 	bool nativeLighthouseMode = false;
+	uint64_t nativeUniverseId = 0;
+	double nativeVelocityYaw = 0;
+	bool nativeUniverseMismatchReported = false;
 #ifdef PVR_EXISTS
 	dreamair::PimaxRuntimePose nativeMapper;
 #endif

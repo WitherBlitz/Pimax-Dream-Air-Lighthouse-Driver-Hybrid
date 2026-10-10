@@ -1,4 +1,4 @@
-# Dream Air LH1 0.3.4 — experimental
+# Dream Air LH1 0.3.5 — experimental
 
 This fork retains the public sboys3 CustomHeadsetOpenVR 1.3.0 rendering and headset features and adds an optional **Pimax HMD pose source**. It targets the Dream Air, firmware 1.0.3, with your Lighthouse 1.0 A/b sync-cable setup. Controllers keep their existing SteamVR tracking. The new mode is an experiment based on measured software behavior; complete feature parity and game stability have not been established.
 
@@ -10,7 +10,9 @@ The launcher starts with **EVO OpenPort** and **Pimax** selected for your curren
 
 Pimax mode creates its own FloorLevel tracking session and uses Pimax's reported room universe, without recentering. It suppresses the duplicate Lighthouse Dream Air HMD while retaining Lighthouse controllers. Existing Dream Air distortion, IPD, eye rotation and other optical settings are preserved. This does not replace the optical decoder or modify firmware/calibration files.
 
-This profile does not use the earlier timed-alignment bridge or require valid Lighthouse HMD callbacks. Reconnecting reapplies FloorLevel to the driver session. Check controller alignment and head movement after startup. Live visual quality and game stability remain to be tested.
+This profile does not use the earlier timed-alignment bridge or require valid Lighthouse HMD callbacks. Reconnecting reapplies FloorLevel to the driver session. It reads the active Pimax room's standing yaw to map rotational velocity into the correct prediction frame. Linear velocity already uses FloorLevel coordinates. Check controller alignment and head movement after startup.
+
+Installation enables SteamVR's `activateMultipleDrivers` for the Pimax profile so Lighthouse remains loaded alongside the custom headset. Live testing confirmed valid native head poses after enabling this setting; the user confirmed the old optics were restored and tracking remained good.
 
 ## Tracking profiles and diagnostics
 
@@ -26,7 +28,7 @@ Changing into or out of Pimax mode requires SteamVR to be closed. Other filter p
 
 Use **Collect diagnostics** with SteamVR running. It saves logs/settings and a 30-second OpenVR CSV locally in **Diagnostics**. With SteamVR closed, it still collects available logs but cannot record live poses. Nothing is uploaded. The separate `%APPDATA%\CustomHeadset\dreamair-tracking.json` should show:
 
-- `build`: `1.3.0-dreamair-lh1.4-experimental`, and `deviceIndex` matching the Dream Air (normally 0).
+- `build`: `1.3.0-dreamair-lh1.5-experimental`, and `deviceIndex` matching the Dream Air (normally 0).
 - `poseSource`: `PimaxRuntime`; increasing callback counts, genuine source validity and a fresh last-sample time.
 - The legacy `pimaxPose.aligned` field describes the old bridge and is not a success indicator for this mode. Forced runtime validity alone is insufficient.
 

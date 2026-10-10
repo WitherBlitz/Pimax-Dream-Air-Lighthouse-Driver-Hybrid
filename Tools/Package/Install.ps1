@@ -17,6 +17,13 @@ $settings=Read-JsonOrEmpty $settingsPath
 $steamSettings=Read-JsonOrEmpty $steamPath
 $settings=Apply-Profile $settings $Profile
 Set-JsonProperty $settings 'onlyHandlePrivateFunctionality' ($Backend -eq 'Play')
+if($Profile -eq 'Pimax'){
+    # A standalone native HMD otherwise stops SteamVR loading Lighthouse.
+    # The controller driver and the Pimax runtime's tracking feed need it active.
+    $runtimeSettings=if($steamSettings.PSObject.Properties['steamvr']){$steamSettings.steamvr}else{[PSCustomObject]@{}}
+    Set-JsonProperty $runtimeSettings 'activateMultipleDrivers' $true
+    Set-JsonProperty $steamSettings 'steamvr' $runtimeSettings
+}
 foreach ($name in @('driver_CustomHeadsetOpenVR','driver_CustomHeadsetOpenVR_Private')) {
     $value=$steamSettings.PSObject.Properties[$name]
     $entry=if ($value) { $value.Value } else { [PSCustomObject]@{} }

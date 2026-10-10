@@ -49,6 +49,7 @@ $cases++; Write-Host 'PASS Play/Pimax mismatch rejected without changing setting
 & (Join-Path $Package 'Rollback.ps1') -SandboxRoot $root
 & (Join-Path $Package 'Install.ps1') -SandboxRoot $root -Backend OpenPort -Profile Pimax
 $settings=Read-JsonOrEmpty $cfg
+Check ((Read-JsonOrEmpty $steam).steamvr.activateMultipleDrivers) 'Native HMD did not keep the Lighthouse controller driver loadable.'
 Check ($settings.dreamAirPoseSource -eq 'Pimax' -and $settings.dreamAir.useNativePimaxTracking -and !$settings.dreamAirTracking.enabled -and $settings.forceTracking) 'Pimax profile or force preservation incorrect.'
 $cases++; Write-Host 'PASS Pimax profile selects native source without changing force flags'
 & (Join-Path $Package 'Rollback.ps1') -SandboxRoot $root
@@ -66,6 +67,15 @@ Check (!(Test-Path -LiteralPath (Join-Path $empty 'CustomHeadset\settings.json')
 Check (!(Test-Path -LiteralPath (Join-Path $empty 'SteamConfig\steamvr.vrsettings'))) 'Originally absent SteamVR settings survived rollback.'
 Check (!(Test-Path -LiteralPath (Join-Path $empty 'SteamVR\drivers\CustomHeadsetOpenVR'))) 'Originally absent driver survived rollback.'
 $cases++; Write-Host 'PASS OpenPort install/rollback on clean state'
+$filterOnly=New-Sandbox 'filter-only'
+& (Join-Path $Package 'Install.ps1') -SandboxRoot $filterOnly -Backend OpenPort -Profile Guard
+$filterConfig=Join-Path $filterOnly 'CustomHeadset\settings.json'
+$filterHash=File-Hash $filterConfig
+$rejected=$false
+try { & (Join-Path $Package 'Set-Profile.ps1') -SandboxRoot $filterOnly -Profile Pimax } catch { $rejected=$true }
+Check ($rejected -and (File-Hash $filterConfig) -eq $filterHash) 'Native profile enabled without the required multiple-driver setting.'
+& (Join-Path $Package 'Rollback.ps1') -SandboxRoot $filterOnly
+$cases++; Write-Host 'PASS native profile refuses missing Lighthouse driver activation'
 $malformed=New-Sandbox 'malformed'
 [IO.File]::WriteAllText((Join-Path $malformed 'CustomHeadset\settings.json'),'{ broken')
 $rejected=$false
@@ -77,4 +87,4 @@ $rejected=$false
 try { Assert-ChildPath (Join-Path $root 'SteamVR\drivers') (Join-Path $root 'outside') | Out-Null } catch { $rejected=$true }
 Check $rejected 'Unsafe path accepted.'
 $cases++; Write-Host 'PASS out-of-root destructive targets rejected'
-Write-Host "$cases/8 installer cases passed"
+Write-Host "$cases/9 installer cases passed"
