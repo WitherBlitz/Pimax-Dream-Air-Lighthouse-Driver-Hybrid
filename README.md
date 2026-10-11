@@ -1,6 +1,6 @@
 **This driver was created and compiled entirely by GPT 6 Astra and 6.1 Sol with additions and edits by WitherBlitz.**
 
-# Dream Air Lighthouse Driver Hybrid
+# Pimax Dream Air Lighthouse Driver Hybrid
 
 An unofficial fork of [sboys3/CustomHeadsetOpenVR](https://github.com/sboys3/CustomHeadsetOpenVR) for the Pimax Dream Air with Lighthouse 1.0 tracking. It combines Pimax's native headset poses with the existing custom renderer and distortion profiles, and aligns Lighthouse controllers and trackers to the headset's floor space.
 
@@ -10,7 +10,7 @@ Release 0.3.7 adds the launcher distortion selector and retains the exact confir
 
 ## Download and run
 
-Download the ZIP from [Releases](https://github.com/WitherBlitz/Dream-Air-Lighthouse-Driver-Hybrid/releases), extract the whole folder into a writable location, and open **DreamAir-LH1.exe**. Keep the launcher, scripts, driver folders and Tools together.
+Download the ZIP from [Releases](https://github.com/WitherBlitz/Pimax-Dream-Air-Lighthouse-Driver-Hybrid/releases), extract the whole folder into a writable location, and open **DreamAir-LH1.exe**. Keep the launcher, scripts, driver folders and Tools together.
 
 1. Close SteamVR and the original CustomHeadset settings GUI.
 2. Keep Pimax running and enable **EVO OpenPort**.
@@ -42,8 +42,8 @@ For OpenXR games, select **SteamVR's OpenXR runtime** so the game uses this Stea
 Clone with submodules:
 
 ```powershell
-git clone --recurse-submodules https://github.com/WitherBlitz/Dream-Air-Lighthouse-Driver-Hybrid.git
-cd Dream-Air-Lighthouse-Driver-Hybrid
+git clone --recurse-submodules https://github.com/WitherBlitz/Pimax-Dream-Air-Lighthouse-Driver-Hybrid.git
+cd Pimax-Dream-Air-Lighthouse-Driver-Hybrid
 ```
 
 Install Visual Studio C++ desktop build tools and a Windows SDK, then run:
